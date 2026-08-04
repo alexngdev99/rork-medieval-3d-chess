@@ -66,6 +66,57 @@ function fakeSword(): THREE.Object3D {
   return group;
 }
 
+/**
+ * A sabre: fat hilt, and a blade of segments swept toward +X so the belly of the
+ * curve is on a known side — the shape `curvedBlade` authors. `spin` is an extra
+ * half turn about its own length, which is the flip that decides which way the
+ * narrow principal axis comes back out of the eigen solver.
+ */
+function fakeSabre(spin: boolean): THREE.Object3D {
+  const blade = new THREE.Group();
+  let x = 0;
+  let y = 0.16;
+  for (let index = 0; index < 6; index += 1) {
+    const angle = 0.34 * (index / 6);
+    const segment = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.014));
+    segment.position.set(x, y + 0.08, 0);
+    segment.rotation.z = -angle;
+    blade.add(segment);
+    x += Math.sin(angle) * 0.16;
+    y += Math.cos(angle) * 0.16;
+  }
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.03));
+  grip.position.set(0, 0.07, 0);
+  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 0.04));
+  guard.position.set(0, 0.155, 0);
+  const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6));
+  blade.add(grip, guard, pommel);
+
+  const group = new THREE.Group();
+  group.add(blade);
+  if (spin) blade.rotation.y = Math.PI;
+  // Handed back lying on a diagonal, the way the generator does.
+  group.rotation.set(0.5, -1.2, 0.9);
+  return group;
+}
+
+/** How far the middle of a fitted blade stands off its own chord, along X. */
+function bellySide(points: THREE.Vector3[], length: number): number {
+  const band = (from: number, to: number): { x: number; y: number } => {
+    const slice = points.filter((point) => point.y >= length * from && point.y < length * to);
+    const count = Math.max(1, slice.length);
+    return {
+      x: slice.reduce((sum, point) => sum + point.x, 0) / count,
+      y: slice.reduce((sum, point) => sum + point.y, 0) / count,
+    };
+  };
+  const ricasso = band(0.3, 0.45);
+  const middle = band(0.6, 0.75);
+  const point = band(0.92, 1.01);
+  const along = (middle.y - ricasso.y) / (point.y - ricasso.y);
+  return middle.x - (ricasso.x + (point.x - ricasso.x) * along);
+}
+
 /** A long arm: thin barrel, deep stock and a trigger guard below the bore. */
 function fakeMusket(): THREE.Object3D {
   const group = new THREE.Group();
@@ -125,6 +176,18 @@ describe("fitArmSculpt", () => {
     // Width lies on X, thickness on Z — the convention the procedural blades use,
     // so a sculpted sabre swings edge-first like a built one.
     expect(size.x).toBeGreaterThan(size.z);
+  });
+
+  it("puts a sabre's belly on +X whichever way it arrives", () => {
+    const source: ArmSculptSource = { url: "", length: 0.54, grip: 0.11, family: "blade" };
+    // The flat is across the swing either way round, so the eigen solver is free
+    // to hand back either sign — and on a curved blade that sign is the whole
+    // silhouette: bowed the wrong way the point curls back over its owner's head
+    // instead of sweeping away from him. The fit has to settle it by measurement.
+    for (const spin of [false, true]) {
+      const { points } = fitted(fakeSabre(spin), source);
+      expect(bellySide(points, source.length)).toBeGreaterThan(0.004 * source.length);
+    }
   });
 
   it("levels a long arm barrel-up with the trigger guard forward", () => {

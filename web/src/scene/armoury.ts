@@ -28,6 +28,11 @@
  *     by asking which side of the mass the *barrel* sits on — the stock, lock
  *     and guard all hang below the bore, so the thin end's centroid points at
  *     the top of the gun.
+ *  4. **Which way round** — the sign of that roll, which an eigenvector cannot
+ *     give: ±narrow are both "the flat facing front". A firearm settles it by
+ *     the stock; a blade settles it by the *bow of its own curve* (see
+ *     {@link fitArmSculpt}), because on a sabre that sign is the difference
+ *     between a sabre and a sickle.
  *
  * Only the fist and the muzzle are authored by hand (as fractions of the
  * weapon's length), because no measurement finds a trigger. Both were read off
@@ -397,6 +402,59 @@ export function fitArmSculpt(scene: THREE.Object3D, source: ArmSculptSource): Ar
     // A blade keeps its flat across the swing, so the thin cross-axis is the one
     // that faces the figure's front.
     front = narrowAxis.clone();
+
+    // Which of the two ways round, though? `narrowAxis` is an eigenvector, and an
+    // eigenvector has no sign: ±narrow both put the flat across the swing, and
+    // which one came back was decided by whichever way the Jacobi sweep happened
+    // to fall. On a straight blade that is invisible. On a curved one it is the
+    // whole silhouette — the Emperor's dress sabre bows 2.1% of its length, and
+    // rolled the wrong way the point stops sweeping away from him and curls back
+    // over his own bicorne instead (measured on his rig: the point lands at 0.80
+    // out, 1.68 up on a 1.70 figure, tangent turning inward at the crown).
+    //
+    // So the roll is measured, like everything else here: the **belly of the
+    // curve** — the convex side — is put on +X, the side {@link curvedBlade}
+    // sweeps toward and {@link knuckleBow} bulges toward in the props these
+    // sculpts stand in for. Which way that has to face on a *figure* then depends
+    // on the fist holding it, and belongs to the mount, not here (see
+    // `WeaponSpec.edged`).
+    const bladeBand = (from: number, to: number): { broad: number; height: number } | null => {
+      let broad = 0;
+      let height = 0;
+      let count = 0;
+      for (const entry of projected) {
+        const along = (towardPoint > 0 ? entry.long - min : max - entry.long) / span;
+        if (along < from || along > to) continue;
+        broad += entry.broad;
+        height += along;
+        count += 1;
+      }
+      return count > 0 ? { broad: broad / count, height: height / count } : null;
+    };
+    // Bow: how far the middle of the blade stands off the chord from the ricasso
+    // to the point. Measured along `broad`, because a blade's curve lies in the
+    // plane of its width — the thin axis is the flat, which is why it is `front`.
+    const ricasso = bladeBand(0.3, 0.45);
+    const middle = bladeBand(0.6, 0.75);
+    const point = bladeBand(0.92, 1);
+    let belly = 0;
+    if (ricasso && middle && point && point.height - ricasso.height > 1e-6) {
+      const along = (middle.height - ricasso.height) / (point.height - ricasso.height);
+      belly = middle.broad - (ricasso.broad + (point.broad - ricasso.broad) * along);
+    }
+    // A straight court blade (the Marengo sword bows 0.03% of its length) has no
+    // curve to read, so fall back to the hilt's own lump: the knuckle bow, which
+    // is the only asymmetry a presentation sword offers and which the primitives
+    // put on the same side as a sabre's belly.
+    if (Math.abs(belly) < 0.005 * span) {
+      const hilt = bladeBand(0, 0.25);
+      const steel = bladeBand(0.35, 1);
+      belly = hilt && steel ? hilt.broad - steel.broad : 0;
+    }
+    // `up × front` is ±broad, so the sign of the belly along the prop's own X is
+    // exact rather than approximate.
+    const sideways = new THREE.Vector3().crossVectors(up, front).dot(broadAxis);
+    if (belly * sideways < 0) front.negate();
   }
   const lateral = new THREE.Vector3().crossVectors(up, front).normalize();
 

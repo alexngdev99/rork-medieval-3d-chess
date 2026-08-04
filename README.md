@@ -1087,7 +1087,7 @@ on the origin:
    taper, butt plates and bowl guards do not. The Marengo sword arrives hilt-last and the pistol
    muzzle-first; neither needs a special case.
 3. **Roll** from the two remaining axes. A blade keeps its flat across the swing (`±X`, matching
-   `curvedBlade`), so a sculpted sabre still cuts edge-first. A firearm's lock plane stands in the
+   `curvedBlade`), so a sculpted sabre still swings edge-first. A firearm's lock plane stands in the
    barrel's own plane (`±Z`), with the trigger-guard side found by stepping from the **bore out to
    the stock**: the slice just behind the muzzle is bare barrel, the butt quarter is all wood and
    furniture, and a gun's stock hangs *below* its bore — so the offset between those two bands
@@ -1103,6 +1103,25 @@ on the origin:
    barrel, lock and trigger guard turned at the sky, on every line infantryman and every marksman
    that carried one, in every clip. The flintlock pistol has no sling to fool the test and reads the
    same under either rule, which is why the Emperor's hold never looked wrong.
+4. **Which way round** — the *sign* of that roll, which an eigenvector cannot give: `±narrow` both
+   put the flat across the swing, so which one came back was decided by whichever way the Jacobi
+   sweep happened to fall. On a straight blade that is invisible; on a curved one it is the entire
+   silhouette, and it is why the Emperor was seen holding his sabre like a sickle. A blade therefore
+   settles it by **the bow of its own curve**: the belly — the convex side — is put on `+X`, the side
+   `curvedBlade` sweeps toward and `knuckleBow` bulges toward in the primitives these sculpts stand
+   in for. A straight court blade has no curve to read (the Marengo sword bows 0.03% of its length),
+   so it falls back to the hilt's own lump, which on a presentation sword is the knuckle bow.
+
+   Which way that belly faces on a *figure* is the mount's business, not the fitter's:
+   `restOrientation` projects the **body's** front, and the body's front does not mirror with the
+   hand, so a prop's own `+X` lands on the body's `+X` — the figure's left — whichever fist holds it
+   (measured: `(0.90, ∓0.45, 0)` for both hands). An `edged` blade is therefore rolled half a turn
+   (`EDGED_FLIP`) in the fist where `+X` is the *outward* side, so the belly always bows across the
+   body and the point sweeps away from its owner. Bowed the other way, on the Emperor's own rig, his
+   dress sabre came to rest with the point at 0.80 out and 1.68 up on a 1.70 m figure — its tangent
+   turning back in over the crown of his bicorne. Bowed across, the point carries on outward (0.85)
+   and clear of him. Only the three curved Napoleonic blades are flagged `edged`; a straight sword
+   rolled half a turn looks identical, so the medieval and Sun Empire arms are untouched.
 
 Only two numbers per weapon are authored: the **fist** and the **bore**, as fractions of the
 weapon's length, because no measurement finds a trigger. Both were read off each sculpt's own
@@ -1111,9 +1130,11 @@ couple of percent of the hand-built props they replace (the rifle's fist at 0.30
 against the primitive's 0.30; the musket's bore at 0.80 against 0.77). On the musket the marker is
 the bayonet **socket**, not the bayonet point: the flash has to leave the barrel, not the blade
 beyond it. `src/scene/armoury.test.ts` throws a primitive-built sword and musket into a random
-orientation and checks they come back standing on their butts, point up, guard forward — and a
-**slung** musket besides, its loop authored far enough off the underside to drag the centroid past
-the bore, so the roll can never quietly regress to the centroid test.
+orientation and checks they come back standing on their butts, point up, guard forward — a **slung**
+musket besides, its loop authored far enough off the underside to drag the centroid past the bore, so
+the roll can never quietly regress to the centroid test — and a **swept sabre** fed in from both
+halves of the roll, which has to come back belly-on-`+X` from either, so the sickle cannot come back
+either.
 
 Everything downstream is untouched by the swap. The sculpt supplies grip and muzzle; the *loadout*
 still owns the rest angle, the wrist offset and the pose-driven `hold`, so the marksman still kneels

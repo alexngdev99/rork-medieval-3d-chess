@@ -88,6 +88,14 @@ interface WeaponSpec {
   offset: THREE.Vector3;
   /** Shields orient their face (+Z) along `aim`; shafts orient their length (+Y). */
   shield?: boolean;
+  /**
+   * Curved and edged: the roll about its own length is read by the eye, so it has
+   * to follow the fist instead of being authored once (see {@link EDGED_FLIP}).
+   *
+   * Only worth setting on a blade with a *belly*. A straight sword rolled half a
+   * turn looks identical; a sabre rolled half a turn is a sickle.
+   */
+  edged?: boolean;
   /** Half-height of a shield, so its rim can be kept off the floor. */
   half?: number;
   /**
@@ -815,6 +823,7 @@ const WEAPONS: Record<WeaponId, WeaponSpec> = {
    */
   imperialSabre: {
     grip: 0.095,
+    edged: true,
     aim: BLADE_AT_REST.clone(),
     offset: new THREE.Vector3(0.02, 0, 0.03),
     build: () => [
@@ -841,6 +850,7 @@ const WEAPONS: Record<WeaponId, WeaponSpec> = {
    */
   marengoSword: {
     grip: 0.09,
+    edged: true,
     aim: BLADE_AT_REST.clone(),
     offset: new THREE.Vector3(0.02, 0, 0.03),
     build: () => [
@@ -917,6 +927,7 @@ const WEAPONS: Record<WeaponId, WeaponSpec> = {
    */
   cavalrySabre: {
     grip: 0.08,
+    edged: true,
     aim: BLADE_AT_REST.clone(),
     offset: new THREE.Vector3(0.02, 0, 0.03),
     build: () => {
@@ -1186,6 +1197,28 @@ function weaponGeometries(id: WeaponId): Map<WeaponRole, THREE.BufferGeometry> {
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 /** Sculpt-local front, matching the generator's orientation verdict (+Z). */
 const LOCAL_FRONT = new THREE.Vector3(0, 0, 1);
+
+/**
+ * Half a turn about a prop's own length, for the blades that need it.
+ *
+ * {@link restOrientation} projects the *body's* front to find the roll, and the
+ * body's front does not mirror with the hand — so the prop's own +X lands on the
+ * body's +X whichever fist is holding it (measured: (0.90, ∓0.45, 0) in body
+ * axes for the two hands). +X is the figure's left, so on a left-hand blade the
+ * prop's +X points away from the spine and on a right-hand blade it points
+ * across the chest.
+ *
+ * That matters because a sabre is fitted belly-on-+X (see `fitArmSculpt`), and
+ * with the rest rake a belly bowing *outward* turns the point back inward: on
+ * the Emperor's rig his dress sabre came to rest with the point at 0.80 out and
+ * 1.68 up on a 1.70 figure — the tangent curling in over the crown of his own
+ * bicorne, which is the sickle silhouette rather than a drawn sabre. Bowed the
+ * other way the point keeps going outward (0.85) and away from him.
+ *
+ * So an {@link WeaponSpec.edged} blade is rolled half a turn in the fist where
+ * +X is the outward side, and the belly always bows across the body.
+ */
+const EDGED_FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
 
 /** Rotation placing the prop's own axes onto its rest direction in body space. */
 function restOrientation(direction: THREE.Vector3, isShield: boolean): THREE.Quaternion {
@@ -1558,6 +1591,9 @@ export function attachWeapons(
     }
 
     const rest = restOrientation(aim, spec.shield === true);
+    // A curved blade's belly bows across the body, not out of it, so the point
+    // sweeps away from the figure instead of hooking back over its own head.
+    if (spec.edged === true && lateral > 0) rest.multiply(EDGED_FLIP);
     const group = new THREE.Group();
     group.name = `weapon_${id}`;
 

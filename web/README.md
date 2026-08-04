@@ -674,6 +674,21 @@ into the same local frame the primitives are authored in — length up `+Y`, but
   Both long arms were therefore fitted **upside down** — sling arcing over the barrel, lock and
   trigger guard turned at the sky — on every figure that carried one. The pistol, with no sling to
   fool it, was right all along and reads the same under either rule.
+- **Which way round** — the *sign* of that roll, which no eigenvector can give: `±narrow` both put
+  the flat across the swing, so which one came back was whatever the Jacobi sweep happened to hand
+  over. Invisible on a straight blade, and the entire silhouette on a curved one. A blade therefore
+  settles it by the **bow of its own curve**: the belly (convex side) is put on `+X`, the side
+  `curvedBlade` sweeps toward and `knuckleBow` bulges toward. A straight court sword has no curve to
+  read (the Marengo sword bows 0.03% of its length), so it falls back to the hilt's own lump.
+
+  Which way that belly has to face on a *figure* is not the fitter's business, because
+  `restOrientation` projects the **body's** front and the body's front does not mirror with the hand:
+  the prop's `+X` lands on the body's `+X` — the figure's left — whichever fist holds it. So a
+  `WeaponSpec.edged` blade is rolled half a turn (`EDGED_FLIP`) in the fist where `+X` is the outward
+  side, and the belly always bows *across* the body. That is the difference between a sabre and a
+  sickle: on the Emperor's rig, bowed outward his dress sabre came to rest with the point at 0.80 out
+  and 1.68 up on a 1.70 figure, its tangent curling back in over the crown of his own bicorne; bowed
+  across, the point keeps going outward (0.85) and away from him.
 
 Only the **fist** and the **bore** are authored, as fractions of the weapon's length, because no
 measurement finds a trigger. Both were read off each sculpt's cross-section profile and land within a
@@ -682,7 +697,8 @@ musket's marker is the bayonet *socket*, not its point — the flash leaves the 
 beyond it. `armoury.test.ts` throws a primitive sword and musket into a random orientation and checks
 they come back on their butts, point up, guard forward — plus a **slung** musket, whose loop is
 authored far enough off the underside to move the centroid past the bore, so the roll can never
-regress to the centroid test again.
+regress to the centroid test again, and a **swept sabre** fed in from both halves of the roll, which
+has to come back belly-on-`+X` either way.
 
 The swap is invisible to everything downstream: the sculpt supplies grip and muzzle, the loadout
 still owns rest angle, wrist offset and `hold`, so the marksman kneels and levels exactly as before.
