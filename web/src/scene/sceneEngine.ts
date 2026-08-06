@@ -140,6 +140,18 @@ const TACTICAL_FOV = 28;
 const DEFAULT_FOV = 46;
 
 /**
+ * The four corners of a square, walked around its perimeter as `(x, z)` steps of
+ * half a tile. Order matters: the winding is what makes a point-in-quad test out
+ * of four edge crossings.
+ */
+const FOOTPRINT_CORNERS: readonly (readonly [number, number])[] = [
+  [-1, -1],
+  [1, -1],
+  [1, 1],
+  [-1, 1],
+];
+
+/**
  * The window the shots above were authored against. Every framing is re-solved
  * for the surface actually being drawn into (`scene/viewport.ts`) — a phone held
  * upright needs a different distance, elevation and lens to see the same board.
@@ -965,6 +977,8 @@ export class SceneEngine {
   private scratchFocus = new THREE.Vector3();
   private scratchLean = new THREE.Vector3();
   private scratchDesired = new THREE.Vector3();
+  private scratchCornerA = new THREE.Vector3();
+  private scratchCornerB = new THREE.Vector3();
   /** True while the engine itself is moving the camera (never counts as input). */
   private cameraDriven = false;
   /** True while a scripted camera move (intro, dolly, preset) is running. */
@@ -4062,8 +4076,25 @@ export class SceneEngine {
    * soon as the player clicks a figure's body — the click silently lands two
    * ranks further up the board. Every figure carries an invisible collider, and
    * whichever of collider/tile the ray reaches first wins.
+   *
+   * That rule is right for choosing a figure and wrong for playing a move, and
+   * the difference is what {@link reachUnderPointer} settles.
    */
   private pickTarget(exclude?: PieceView | null): { square: SquareId | null; piece: PieceView | null } {
+    const hit = this.rayPick(exclude);
+    const reach = this.reachUnderPointer();
+    if (reach === null || reach === hit.square) return hit;
+
+    // A figure speaks for the ground it stands on, and no further. The pointer is
+    // inside a lit destination's own footprint here, so unless it is *also* over
+    // the square whatever-is-in-front occupies — its feet, its base, the tile it
+    // was picked for — the destination is what the player is aiming at.
+    if (hit.square !== null && this.pointerOverSquare(hit.square)) return hit;
+    return { square: reach, piece: this.pieces.get(reach) ?? null };
+  }
+
+  /** The nearest solid thing under the ray: a figure's collider, or the stone. */
+  private rayPick(exclude?: PieceView | null): { square: SquareId | null; piece: PieceView | null } {
     const colliders: THREE.Mesh[] = [];
     for (const piece of this.pieces.values()) {
       if (piece === exclude) continue;
@@ -4082,6 +4113,61 @@ export class SceneEngine {
       ? ((tileHit.object.userData.square as SquareId | undefined) ?? null)
       : this.squareUnderRay();
     return { square, piece: square ? (this.pieces.get(square) ?? null) : null };
+  }
+
+  /**
+   * The lit destination the pointer is over, **ignoring depth**.
+   *
+   * The board is played from a low camera among life-size figures, so a legal
+   * square is usually behind a body rather than beside one: on the opening
+   * position a knight's own two destinations are 88% hidden behind the pawns in
+   * front of them on a desktop window, and ~64% on a phone. Every one of those
+   * clicks used to be eaten by the pawn — the selection jumped to it instead of
+   * the knight moving, which reads as the board ignoring the player.
+   *
+   * The pointer being inside a square's projected outline is exactly the test
+   * "the player is pointing at that square", and it needs no tolerance to tune:
+   * the board is one plane, so its 64 outlines tile the screen without gaps or
+   * overlaps, and at most one can contain the pointer.
+   */
+  private reachUnderPointer(): SquareId | null {
+    if (this.selected === null || this.legalTargets.size === 0) return null;
+    for (const square of this.legalTargets.keys()) {
+      if (this.pointerOverSquare(square)) return square;
+    }
+    return null;
+  }
+
+  /** Is the pointer inside this square's own footprint on screen? */
+  private pointerOverSquare(square: SquareId): boolean {
+    const centre = squareToWorld(square, BOARD_TOP);
+    const half = TILE / 2;
+    let side = 0;
+    for (let index = 0; index < 4; index += 1) {
+      const from = this.footprintCorner(this.scratchCornerA, centre, half, index);
+      const to = this.footprintCorner(this.scratchCornerB, centre, half, (index + 1) % 4);
+      // A corner behind the eye makes the projection meaningless, and a tile that
+      // close is not one anybody is trying to click.
+      if (from.z > 1 || to.z > 1) return false;
+      const cross =
+        (to.x - from.x) * (this.pointer.y - from.y) - (to.y - from.y) * (this.pointer.x - from.x);
+      const turn = Math.sign(cross);
+      if (turn === 0) continue;
+      if (side === 0) side = turn;
+      else if (turn !== side) return false;
+    }
+    return true;
+  }
+
+  /** Corner `index` of a square, walked around the perimeter, in clip space. */
+  private footprintCorner(
+    out: THREE.Vector3,
+    centre: THREE.Vector3,
+    half: number,
+    index: number,
+  ): THREE.Vector3 {
+    const step = FOOTPRINT_CORNERS[index];
+    return out.set(centre.x + step[0] * half, BOARD_TOP, centre.z + step[1] * half).project(this.camera);
   }
 
   private squareUnderRay(): SquareId | null {

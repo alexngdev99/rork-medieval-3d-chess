@@ -23,7 +23,7 @@ bun run preview
 | Orbit / zoom | Drag, mouse wheel (pinch on touch) |
 | Playing on a phone | Nothing to set — the framing is solved for the screen, see [Screen framing](#screen-framing) |
 | Select a figure | Click it (legal squares glow green, captures red) |
-| Move | Click a highlighted square (click the figure again to deselect) |
+| Move | Click a highlighted square — including one standing behind a figure, see [Clicking a square behind a figure](#clicking-a-square-behind-a-figure) (click the figure again to deselect) |
 | Promotion | Pick one of the four rotating figures on pedestals |
 | Camera | Camera icon in the top bar (presets, flip, tactical) |
 | Armies & battleground | Picked on the main menu before the duel; read-only in settings once a duel is running |
@@ -42,6 +42,36 @@ that travels more than 8px (16px for a finger) counts as a camera swing instead.
 | `C` | Cinema mode — hide the whole overlay |
 | `Space` | Pause / resume a showcase duel |
 | `Esc` | Close the settings panel, camera menu, chronicle or tooltip |
+
+### Clicking a square behind a figure
+
+The figures are life-size people standing on 1.02 m squares and the camera is low, so a
+destination is normally *behind* a body rather than beside one. Sampled on the opening position
+with the real framing and colliders: a knight's own two squares are **88% hidden** on a 1440×900
+window (61–67% on a 390×844 phone), and `a3` is 47% hidden by the pawn on `a2`.
+
+Every figure carries an invisible collider and the nearest hit wins, which is the right rule for
+*choosing* a figure and the wrong one for *playing a move*: only **11%** of the pixels inside `f3`
+resolved to `f3` — the other 89% hit the `f2` pawn in front, so the selection jumped to the pawn and
+the knight stayed put. That is the board appearing to ignore the player.
+
+`pickTarget()` now decides between the two with one rule: **a figure speaks for the ground it
+stands on, and no further.** While a piece is selected, if the pointer is inside a lit
+destination's own projected outline, that destination wins — unless the pointer is *also* inside
+the outline of the square the ray hit (its feet, its base, its own tile), which keeps
+tap-to-select, tap-to-deselect and tap-the-enemy-to-attack exactly as they were.
+
+The outline test needs no tolerance to tune: the board is a single plane, so its 64 outlines tile
+the screen with no gaps and no overlaps, and at most one can contain the pointer. Re-sampling the
+same cases: `f3` and `c3` go from 11% to **100%** clickable on desktop and 34% → 98% on the phone,
+`a3` from 49% to 100%, `e4` (never occluded) stays at 100%, and every figure remains 100%
+selectable over its own ground.
+
+Seeing the square is the other half. A marker that only exists on the stone is invisible under a
+body, so `board.ts` draws each destination reticle a second time with `depthTest: false`,
+additively, at `XRAY_OPACITY` (0.26–0.38 of full) — an occluded square reads as light bleeding
+through the figure. Locked to the marker's own scale and spin at 0.9×, so where nothing is in the
+way the two read as one mark rather than a double exposure.
 
 ## Screen framing
 

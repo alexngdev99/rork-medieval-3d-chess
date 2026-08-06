@@ -83,6 +83,29 @@ const BEAM_OPACITY: Record<HighlightKind, number> = {
   hint: 0.12,
 };
 
+/**
+ * How much of a reticle is drawn *through* whatever stands in front of it.
+ *
+ * The figures are life-size and the camera is low, so a destination is routinely
+ * behind a body rather than beside one: measured on the opening position, a
+ * knight's own two squares are 88% hidden on a desktop window and ~64% on a
+ * phone. A marker that only exists on the stone is therefore a marker the player
+ * cannot see. Each destination is drawn a second time with the depth test off,
+ * additively and at a fraction of its strength, so an occluded square reads as
+ * light bleeding through the figure instead of vanishing. Deliberately low: this
+ * is a whisper saying "the square is behind me", not a decal on the model.
+ */
+const XRAY_OPACITY: Record<HighlightKind, number> = {
+  select: 0,
+  move: 0.3,
+  capture: 0.38,
+  castle: 0.34,
+  promote: 0.38,
+  last: 0,
+  check: 0,
+  hint: 0.26,
+};
+
 /** Radians per second the reticle spins (capture locks turn the other way). */
 const MARKER_SPIN: Record<HighlightKind, number> = {
   select: 0,
@@ -172,6 +195,9 @@ interface HighlightSlot {
   glowMaterial: THREE.MeshBasicMaterial;
   marker: THREE.Mesh;
   markerMaterial: THREE.MeshBasicMaterial;
+  /** The same reticle again, drawn through anything standing in the way. */
+  xray: THREE.Mesh;
+  xrayMaterial: THREE.MeshBasicMaterial;
   beam: THREE.Mesh;
   beamMaterial: THREE.MeshBasicMaterial;
   kind: HighlightKind | null;
@@ -395,6 +421,25 @@ export class BoardView {
         marker.renderOrder = 4;
         this.group.add(marker);
 
+        const xrayMaterial = this.track(
+          new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            depthTest: false,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+          }),
+        );
+        const xray = new THREE.Mesh(markerGeometry, xrayMaterial);
+        xray.rotation.x = -Math.PI / 2;
+        xray.position.copy(squareToWorld(square, BOARD_TOP + 0.017));
+        xray.visible = false;
+        // Above every board overlay: with no depth test to sort it, render order
+        // is the only thing keeping it on top of the glow it belongs to.
+        xray.renderOrder = 9;
+        this.group.add(xray);
+
         const beamMaterial = this.track(
           new THREE.MeshBasicMaterial({
             map: beamMap,
@@ -417,6 +462,8 @@ export class BoardView {
           glowMaterial,
           marker,
           markerMaterial,
+          xray,
+          xrayMaterial,
           beam,
           beamMaterial,
           kind: null,
@@ -754,9 +801,11 @@ export class BoardView {
       slot.age = 0;
       slot.glow.visible = false;
       slot.marker.visible = false;
+      slot.xray.visible = false;
       slot.beam.visible = false;
       slot.glowMaterial.opacity = 0;
       slot.markerMaterial.opacity = 0;
+      slot.xrayMaterial.opacity = 0;
       slot.beamMaterial.opacity = 0;
     }
   }
@@ -776,16 +825,21 @@ export class BoardView {
     const color = HIGHLIGHT_COLORS[kind];
     slot.glowMaterial.color.setHex(color);
     slot.markerMaterial.color.setHex(color);
+    slot.xrayMaterial.color.setHex(color);
     slot.beamMaterial.color.setHex(color);
 
     const markerMap = this.markerMaps[kind];
     slot.markerMaterial.map = markerMap;
     slot.markerMaterial.needsUpdate = true;
     slot.marker.rotation.z = 0;
+    slot.xrayMaterial.map = markerMap;
+    slot.xrayMaterial.needsUpdate = true;
+    slot.xray.rotation.z = 0;
 
     const visible = slot.age >= 0;
     slot.glow.visible = visible;
     slot.marker.visible = visible && markerMap !== null;
+    slot.xray.visible = visible && markerMap !== null && XRAY_OPACITY[kind] > 0;
     slot.beam.visible = visible && BEAM_OPACITY[kind] > 0;
   }
 
@@ -811,14 +865,17 @@ export class BoardView {
       if (slot.age < 0) {
         slot.glow.visible = false;
         slot.marker.visible = false;
+        slot.xray.visible = false;
         slot.beam.visible = false;
         continue;
       }
 
       const hasMarker = this.markerMaps[kind] !== null;
+      const hasXray = hasMarker && XRAY_OPACITY[kind] > 0;
       const hasBeam = BEAM_OPACITY[kind] > 0;
       slot.glow.visible = true;
       slot.marker.visible = hasMarker;
+      slot.xray.visible = hasXray;
       slot.beam.visible = hasBeam;
 
       // Pop-in: overshoot the scale, then breathe.
@@ -835,6 +892,14 @@ export class BoardView {
         slot.markerMaterial.opacity = MARKER_OPACITY[kind] * (0.72 + breath * 0.34) * fade;
         slot.marker.scale.setScalar(0.35 + pop * 0.65 + (slot.pulse ? wave * 0.05 : wave * 0.02));
         slot.marker.rotation.z += delta * MARKER_SPIN[kind];
+      }
+
+      if (hasXray) {
+        // Locked to the reticle it shadows, a touch smaller so the two read as
+        // one mark rather than a double exposure when nothing is in the way.
+        slot.xrayMaterial.opacity = XRAY_OPACITY[kind] * (0.66 + breath * 0.34) * fade;
+        slot.xray.scale.setScalar(slot.marker.scale.x * 0.9);
+        slot.xray.rotation.z = slot.marker.rotation.z;
       }
 
       if (hasBeam) {

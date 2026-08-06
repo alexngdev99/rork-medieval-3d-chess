@@ -140,7 +140,7 @@ Cloudflare Pages or any static host. No environment variables are required to ru
 | Orbit / zoom | Drag, mouse wheel (one-finger drag and pinch on touch) |
 | Playing on a phone | Nothing to set: the framing, the lens and the orbit limits are solved for the screen (see [Fitting the hall to the screen](#fitting-the-hall-to-the-screen)) |
 | Select a figure | Click it — legal squares glow green, captures red |
-| Move | Click a highlighted square (click the figure again to deselect) |
+| Move | Click a highlighted square, even one hidden behind a figure (click the figure again to deselect) |
 | Promotion | Pick one of the four figures rotating on pedestals |
 | Camera & battleground | Camera icon in the top bar — Ivory / Obsidian / Overhead / Cinematic, flip, tactical, and the four arenas |
 | What a button does | Hover or focus it (tap it on touch) — every icon carries a tooltip |
@@ -150,6 +150,19 @@ Cloudflare Pages or any static host. No environment variables are required to ru
 There is no drag-and-drop: a press that travels more than 8px (16px for a finger — a tap on
 glass always drifts) is read as a camera swing, so orbiting from a figure never moves it.
 Selection and moves both resolve on release.
+
+**A destination hidden behind a figure is still one click.** These are life-size people standing on
+1.02 m squares, seen from a low camera, so the square a piece is moving to is usually *behind* a
+body rather than beside one. Measured on the opening position with the real framing and colliders,
+both of a knight's own squares are **88% hidden** on a desktop window (61–67% on a phone), and only
+11% of the pixels inside `f3` used to resolve to `f3` — the rest hit the pawn on `f2` in front of
+it, so the click selected the pawn and the knight never moved. The board now settles those clicks
+with one rule: **a figure speaks for the ground it stands on, and no further.** Point at a lit
+square and you get that square, whatever is standing in front of it; point at a figure's own tile
+and you get the figure, so choosing a piece, deselecting it and clicking an enemy to attack are all
+unchanged. Every occluded destination also draws its reticle *through* the body in front of it, so
+the square can be seen as well as clicked. Details and the numbers: [Clicking a square behind a
+figure](web/README.md#clicking-a-square-behind-a-figure).
 
 Keyboard shortcuts (ignored while typing in a field):
 
