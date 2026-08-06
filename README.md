@@ -33,6 +33,7 @@ cd web && bun install && bun run dev
 - [Swapping in your own models](#swapping-in-your-own-models)
 - [Audio](#audio)
 - [Scripts](#scripts)
+- [The share card](#the-share-card)
 - [Browser support](#browser-support)
 - [Contributing](#contributing)
 - [License](#license)
@@ -385,7 +386,7 @@ Switchable at any time from the camera menu or Settings; each one is a complete 
 │   └── rewrite-commit-messages.sh
 └── web/
     ├── index.html
-    ├── public/             icon, favicon, robots.txt (drop local .glb models here)
+    ├── public/             icon, favicon, banner.jpg (share card), robots.txt (drop local .glb models here)
     └── src/
         ├── core/           chess state — never imports three.js
         │   ├── gameController.ts   owns chess.js, clocks, undo, AI turns, snapshots
@@ -1431,6 +1432,32 @@ no other**:
 
 All four variables resolve to `0px` on every screen without a cutout, so desktop and Android
 layouts are byte-for-byte what they were. Nothing here is a user-agent check.
+
+## The share card
+
+Pasted into X, Discord, iMessage, Slack or Facebook the link used to unfurl as **bare text**: the
+page carried an `og:title` and an `og:description` but **no `og:image` and no `twitter:card`**, and
+those crawlers never run the app — they read the raw HTML once and leave. A WebGL hall is invisible
+to them, so there was nothing to show.
+
+`web/index.html` now ships a full card, and `web/public/banner.jpg` is the picture:
+
+- **`twitter:card` is `summary_large_image`.** Without it X draws a small square thumbnail beside
+  the text instead of the full-width banner, even when an image is given.
+- **The image url is absolute**, not `/banner.jpg`. X's crawler silently drops relative image paths.
+  It appears three times — `og:image`, `og:image:secure_url`, `twitter:image` — because the older
+  scrapers each look at a different one. Change all three (and `og:url`) if the site moves domain.
+- **`og:image:width` / `height` are declared** (1600×900, 16:9), so the card reserves the right shape
+  before the picture has finished downloading and nothing letterboxes.
+- **JPEG at 1600px wide, ~355 KB.** The source banner was a 1672×941 PNG at **2.9 MB** — under X's
+  5 MB ceiling but slow enough that a crawler on a timeout can give up mid-fetch and cache the miss.
+  Same picture, **8× smaller**.
+- **`og:image:alt` and `twitter:image:alt`** describe the board for anyone reading the timeline with
+  a screen reader.
+
+`public/robots.txt` already allows `Twitterbot` and `facebookexternalhit` explicitly, so nothing else
+was in the way. Crawlers cache aggressively: after a change, re-scrape the url in X's Post Inspector
+or Facebook's Sharing Debugger rather than waiting for the cache to lapse.
 
 ## Browser support
 

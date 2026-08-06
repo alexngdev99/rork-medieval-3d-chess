@@ -11,9 +11,30 @@
     <meta name="description" content="Cinematic 3D chess in a torch-lit castle hall. Play a computer opponent or a friend." />
     <meta name="theme-color" content="#05060a" />
 
-    <meta property="og:title" content="King's Gambit — Medieval 3D Chess" />
-    <meta property="og:description" content="Cinematic 3D chess in a torch-lit castle hall." />
+    <!-- Share card. X, Facebook, Discord, iMessage and Slack all read these from the
+         raw HTML — they never run the app — so the picture has to be a real static
+         file with an ABSOLUTE url. A relative `/banner.jpg` is silently dropped by
+         X's crawler, which is why the link used to unfurl as bare text.
+         Update `og:url` / `og:image` if the site moves to another domain. -->
+    <meta property="og:site_name" content="King's Gambit" />
+    <meta property="og:title" content="King's Gambit — Epic 3D Chess Battles" />
+    <meta property="og:description" content="Command your army. Outsmart your rival. Cinematic 3D chess in a torch-lit castle hall — play the engine or a friend." />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://g9111r67kl6tq85g540sd-web.rork.live/" />
+    <meta property="og:image" content="https://g9111r67kl6tq85g540sd-web.rork.live/banner.jpg" />
+    <meta property="og:image:secure_url" content="https://g9111r67kl6tq85g540sd-web.rork.live/banner.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1600" />
+    <meta property="og:image:height" content="900" />
+    <meta property="og:image:alt" content="Two 3D chess armies facing off across a glowing board in a castle hall" />
+
+    <!-- `summary_large_image` is what makes X show the full-width banner instead of
+         a thumbnail beside the text. -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="King's Gambit — Epic 3D Chess Battles" />
+    <meta name="twitter:description" content="Command your army. Outsmart your rival. Cinematic 3D chess in a torch-lit castle hall." />
+    <meta name="twitter:image" content="https://g9111r67kl6tq85g540sd-web.rork.live/banner.jpg" />
+    <meta name="twitter:image:alt" content="Two 3D chess armies facing off across a glowing board in a castle hall" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
