@@ -3,7 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import { ARMY_SKINS, SHOT_MODELS, type ArmySkinId, type ArsenalId, type GunVoice } from "../assets/generated";
 import type { GameController } from "../core/gameController";
-import type { Faction, GameSnapshot, MoveEvent, PieceKind, SquareId } from "../core/types";
+import { PIECE_LABEL, type Faction, type GameSnapshot, type MoveEvent, type PieceKind, type SquareId } from "../core/types";
 import { audio, type FootstepTimbre } from "../audio/audioManager";
 import type { ArenaTheme } from "./arena";
 import { ARENA_LOOKS, DEFAULT_ARENA } from "./arena";
@@ -22,6 +22,7 @@ import {
   type MarchClip,
   type TemplateKey,
 } from "./pieces";
+import { PLAQUE_ASPECT, promotionPlaqueTexture } from "./rankBadges";
 import { PostFX } from "./postfx";
 import { QUALITY_SETTINGS, type QualityPreset } from "./quality";
 import { AMMUNITION, type AmmoKind } from "./ammunition";
@@ -164,7 +165,44 @@ const AUTHORED_VIEW: ViewportProfile = {
   portrait: false,
 };
 
-const PROMOTION_CHOICES: PieceKind[] = ["q", "r", "b", "n"];
+/**
+ * What a pawn may become, and the key that picks it. The order is the order they
+ * are laid out in — best first, so the common choice is the leftmost thing the
+ * eye lands on.
+ */
+const PROMOTION_CHOICES: readonly { kind: PieceKind; key: string }[] = [
+  { kind: "q", key: "Q" },
+  { kind: "r", key: "R" },
+  { kind: "b", key: "B" },
+  { kind: "n", key: "N" },
+];
+
+/** Candidate figure scale, and the world gaps between plinths. */
+const PROMOTION_SLOT_SCALE = 0.92;
+const PROMOTION_SPACING = 1.5;
+const PROMOTION_ROW_GAP = 2;
+/** Height of one slot's contents (plinth, figure, name plate) in world units. */
+const PROMOTION_SLOT_HEIGHT = 1.75;
+/** Widest point of one slot — the name plate, not the figure. */
+const PROMOTION_SLOT_WIDTH = 1.3;
+/** Share of the viewport's narrow axis the whole picker is solved to fill. */
+const PROMOTION_FILL = 0.84;
+/** How far behind the candidates the scrim hangs. */
+const PROMOTION_SCRIM_DEPTH = 1.8;
+
+/** One candidate: its plinth, its spinning figure and its name plate. */
+interface PromotionSlot {
+  kind: PieceKind;
+  /** Positioned by the layout solve every frame. */
+  group: THREE.Group;
+  /** Holds the figure only, so the idle turn does not swing the name plate. */
+  spin: THREE.Group;
+  view: PieceView;
+  plaque: THREE.Sprite;
+  pedestal: THREE.Mesh;
+  /** 0 at rest, 1 under the pointer; smoothed, drives lift and glow. */
+  attention: number;
+}
 
 /**
  * When the frame is sampled for the black-screen watchdog, in seconds since the
@@ -906,7 +944,14 @@ export class SceneEngine {
   private swappingArmies = false;
   private promotionGroup: THREE.Group | null = null;
   private promotionViews: PieceView[] = [];
+  private promotionSlots: PromotionSlot[] = [];
+  /** Dark panel hung behind the candidates so the board stops competing. */
+  private promotionScrim: THREE.Mesh | null = null;
+  /** Which candidate the pointer is over, if any. */
+  private promotionHover: PieceKind | null = null;
   private promotionResolve: ((kind: PieceKind) => void) | null = null;
+  /** Scratch vector for the picker's placement, to keep the frame allocation-free. */
+  private pickerScratch = new THREE.Vector3();
 
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
@@ -1178,20 +1223,7 @@ export class SceneEngine {
     for (const piece of this.captured) piece.update(delta, this.elapsed);
     for (const piece of this.promotionViews) piece.update(delta, this.elapsed);
 
-    if (this.promotionGroup) {
-      this.promotionGroup.children.forEach((child, index) => {
-        child.rotation.y = this.elapsed * 0.9 + index * 0.4;
-      });
-      if (this.tactical) {
-        // Lay the picker flat so the four candidates face the overhead camera.
-        this.promotionGroup.position.set(0, 3.4, 0);
-        this.promotionGroup.rotation.set(-Math.PI / 2, 0, 0);
-      } else {
-        this.promotionGroup.rotation.set(0, 0, 0);
-        this.promotionGroup.position.set(0, 2.6, 0);
-        this.promotionGroup.lookAt(this.camera.position.x, 2.6, this.camera.position.z);
-      }
-    }
+    if (this.promotionGroup) this.layoutPromotionPicker(delta);
 
     if (this.tactical) this.alignTokens();
 
@@ -3980,23 +4012,34 @@ export class SceneEngine {
 
   // ---------------------------------------------------------------- promotion
 
+  /**
+   * Builds the four candidates a promoting pawn may become.
+   *
+   * This is a modal moment, so it is staged like one: a dark panel drops behind
+   * the candidates, and each stands on its own plinth over a plaque naming the
+   * rank and the key that picks it. Four bare sculpts is not a choice a player
+   * can read — every officer in this army is royal-height and the differences
+   * live in their hands, which at picker size is a few pixels of weapon.
+   */
   private buildPromotionPicker(color: Faction): void {
     this.closePromotionPicker();
     const group = new THREE.Group();
-    const pedestalGeometry = new THREE.CylinderGeometry(0.42, 0.5, 0.2, 20);
-    const pedestalMaterial = new THREE.MeshStandardMaterial({
-      color: 0x3a332a,
-      roughness: 0.5,
-      metalness: 0.7,
-      emissive: 0x2a1c08,
-      emissiveIntensity: 0.5,
-    });
+    const pedestalGeometry = new THREE.CylinderGeometry(0.44, 0.54, 0.22, 24);
+    const accent = new THREE.Color(FACTION_ACCENT[color]);
 
-    PROMOTION_CHOICES.forEach((kind, index) => {
+    PROMOTION_CHOICES.forEach(({ kind, key }) => {
       const slot = new THREE.Group();
-      slot.position.set((index - 1.5) * 1.35, 0, 0);
-      const pedestal = new THREE.Mesh(pedestalGeometry, pedestalMaterial);
-      pedestal.position.y = -0.1;
+      const pedestal = new THREE.Mesh(
+        pedestalGeometry,
+        new THREE.MeshStandardMaterial({
+          color: 0x3a332a,
+          roughness: 0.5,
+          metalness: 0.7,
+          emissive: accent.clone().multiplyScalar(0.4),
+          emissiveIntensity: 0.5,
+        }),
+      );
+      pedestal.position.y = -0.11;
       pedestal.userData.promotion = kind;
       slot.add(pedestal);
 
@@ -4005,33 +4048,172 @@ export class SceneEngine {
         idleAnimation: true,
         rankBadge: false,
       });
-      view.container.scale.setScalar(0.78);
+      view.container.scale.setScalar(PROMOTION_SLOT_SCALE);
       for (const mesh of view.hitMeshes) mesh.userData.promotion = kind;
-      slot.add(view.container);
+      // The figure turns inside its own group, so the idle spin never swings the
+      // name plate out of line.
+      const spin = new THREE.Group();
+      spin.add(view.container);
+      slot.add(spin);
+
+      const plaque = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: promotionPlaqueTexture(kind, color, PIECE_LABEL[kind], key),
+          transparent: true,
+          depthTest: false,
+          depthWrite: false,
+        }),
+      );
+      plaque.scale.set(PROMOTION_SLOT_WIDTH, PROMOTION_SLOT_WIDTH / PLAQUE_ASPECT, 1);
+      plaque.position.y = -0.5;
+      plaque.renderOrder = 42;
+      plaque.frustumCulled = false;
+      // The plate is the easiest thing to aim at, so it picks too.
+      plaque.userData.promotion = kind;
+      slot.add(plaque);
+
       this.promotionViews.push(view);
+      this.promotionSlots.push({ kind, group: slot, spin, view, plaque, pedestal, attention: 0 });
       group.add(slot);
     });
 
-    group.position.set(0, 2.6, 0);
+    // Scrim: hung behind the candidates and resized to the viewport every frame,
+    // so the far army reads as a dimmed backdrop instead of clutter the
+    // candidates have to fight. Measured on a phone, board figures covered
+    // 94-100% of every candidate's silhouette before this.
+    const scrim = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ color: 0x04060c, transparent: true, opacity: 0, depthWrite: false }),
+    );
+    scrim.position.z = -PROMOTION_SCRIM_DEPTH;
+    scrim.renderOrder = -1;
+    scrim.frustumCulled = false;
+    group.add(scrim);
+    this.promotionScrim = scrim;
+
     this.scene.add(group);
     this.promotionGroup = group;
-    this.postfx.setCinematic(true, this.camera.position.distanceTo(group.position));
+    this.promotionHover = null;
+    this.layoutPromotionPicker(0);
     this.callbacks.onPromotionOpen(true);
+  }
+
+  /**
+   * Places the picker in front of the camera and solves its size from the
+   * viewport: four across on a wide screen, a 2x2 grid where the screen is too
+   * narrow to hold four readable figures side by side. Measured on a phone, the
+   * old board-anchored row drew each candidate 38px tall inside the far army;
+   * the solved grid gets the same figure to ~115px over the scrim.
+   */
+  private layoutPromotionPicker(delta: number): void {
+    const group = this.promotionGroup;
+    if (!group) return;
+
+    const aspect = Math.max(0.35, this.camera.aspect);
+    const columns = aspect < 1.05 ? 2 : PROMOTION_CHOICES.length;
+    const rows = Math.ceil(PROMOTION_CHOICES.length / columns);
+    const halfHeight = Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2);
+    const spanWide = (columns - 1) * PROMOTION_SPACING + PROMOTION_SLOT_WIDTH;
+    const spanTall = (rows - 1) * PROMOTION_ROW_GAP + PROMOTION_SLOT_HEIGHT;
+    const distance = THREE.MathUtils.clamp(
+      Math.max(spanWide / (PROMOTION_FILL * 2 * halfHeight * aspect), spanTall / (PROMOTION_FILL * 2 * halfHeight)),
+      3,
+      9,
+    );
+
+    // Anchored to the camera, not to the board: the picker then reads the same on
+    // every screen and can never end up hidden inside a rank of figures.
+    const forward = this.camera.getWorldDirection(this.pickerScratch);
+    group.position.copy(this.camera.position).addScaledVector(forward, distance);
+    if (this.tactical) {
+      // Looking straight down, "up" is meaningless — borrow the camera's own
+      // orientation so the grid stays square to the screen.
+      group.quaternion.copy(this.camera.quaternion);
+    } else {
+      group.rotation.set(0, 0, 0);
+      group.lookAt(this.camera.position);
+    }
+
+    this.promotionSlots.forEach((slot, index) => {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      const hovered = this.promotionHover === slot.kind;
+      slot.attention += ((hovered ? 1 : 0) - slot.attention) * Math.min(1, delta * 12);
+      slot.group.position.set(
+        (column - (columns - 1) / 2) * PROMOTION_SPACING,
+        ((rows - 1) / 2 - row) * PROMOTION_ROW_GAP + PROMOTION_SLOT_HEIGHT * 0.1 + slot.attention * 0.12,
+        slot.attention * 0.18,
+      );
+      slot.group.scale.setScalar(1 + slot.attention * 0.06);
+      slot.spin.rotation.y = this.elapsed * 0.7 + index * 0.5;
+      const pedestal = slot.pedestal.material as THREE.MeshStandardMaterial;
+      pedestal.emissiveIntensity = 0.5 + slot.attention * 1.6;
+      (slot.plaque.material as THREE.SpriteMaterial).opacity = 0.9 + slot.attention * 0.1;
+    });
+
+    if (this.promotionScrim) {
+      const depth = distance + PROMOTION_SCRIM_DEPTH;
+      const height = 2 * halfHeight * depth * 1.25;
+      this.promotionScrim.scale.set(height * aspect * 1.25, height, 1);
+      const material = this.promotionScrim.material as THREE.MeshBasicMaterial;
+      material.opacity = Math.min(0.72, material.opacity + delta * 3);
+    }
+
+    this.postfx.setCinematic(true, distance + 0.4);
   }
 
   private closePromotionPicker(): void {
     if (this.promotionGroup) {
       this.scene.remove(this.promotionGroup);
       this.promotionGroup.traverse((node) => {
-        const mesh = node as THREE.Mesh;
-        if (mesh.isMesh && mesh.geometry) mesh.geometry.dispose();
+        const carrier = node as THREE.Mesh | THREE.Sprite;
+        if ((carrier as THREE.Mesh).isMesh && (carrier as THREE.Mesh).geometry) (carrier as THREE.Mesh).geometry.dispose();
+        // The sculpts belong to their PieceView and are disposed with it; only the
+        // picker's own plinths, plates and scrim are freed here.
+        if (!carrier.userData.promotion && !(carrier as THREE.Sprite).isSprite) return;
+        const material = carrier.material as THREE.Material | THREE.Material[] | undefined;
+        if (Array.isArray(material)) for (const entry of material) entry.dispose();
+        else material?.dispose();
       });
       this.promotionGroup = null;
     }
     for (const view of this.promotionViews) view.dispose();
     this.promotionViews = [];
+    this.promotionSlots = [];
+    this.promotionScrim = null;
+    this.promotionHover = null;
     this.postfx.setCinematic(false);
     this.callbacks.onPromotionOpen(false);
+  }
+
+  /** Which candidate, if any, the pointer ray currently reaches. */
+  private pickPromotion(): PieceKind | null {
+    if (!this.promotionGroup) return null;
+    const targets: THREE.Object3D[] = [];
+    this.promotionGroup.traverse((node) => {
+      if ((node as THREE.Mesh).isMesh || (node as THREE.Sprite).isSprite) targets.push(node);
+    });
+    for (const hit of this.raycaster.intersectObjects(targets, false)) {
+      let node: THREE.Object3D | null = hit.object;
+      while (node) {
+        const kind = node.userData.promotion as PieceKind | undefined;
+        if (kind) return kind;
+        node = node.parent;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Takes the choice from outside the canvas — the keyboard shortcuts printed on
+   * each plaque. No-op unless a promotion is actually waiting.
+   */
+  choosePromotion(kind: PieceKind): boolean {
+    if (!this.promotionResolve) return false;
+    if (!PROMOTION_CHOICES.some((choice) => choice.kind === kind)) return false;
+    audio.blip("press");
+    this.promotionResolve(kind);
+    return true;
   }
 
   private requestPromotion(color: Faction): Promise<PieceKind> {
@@ -4189,6 +4371,12 @@ export class SceneEngine {
 
     if (this.promotionGroup) {
       this.board.setHover(null);
+      const kind = this.pickPromotion();
+      if (kind !== this.promotionHover) {
+        if (kind) audio.blip("hover");
+        this.promotionHover = kind;
+      }
+      this.canvas.style.cursor = kind ? "pointer" : "default";
       return;
     }
 
@@ -4219,24 +4407,8 @@ export class SceneEngine {
     this.updatePointer(event);
 
     if (this.promotionGroup) {
-      const meshes: THREE.Object3D[] = [];
-      this.promotionGroup.traverse((node) => {
-        if ((node as THREE.Mesh).isMesh) meshes.push(node);
-      });
-      const hits = this.raycaster.intersectObjects(meshes, false);
-      let kind: PieceKind | undefined;
-      for (const hit of hits) {
-        let node: THREE.Object3D | null = hit.object;
-        while (node && !kind) {
-          kind = node.userData.promotion as PieceKind | undefined;
-          node = node.parent;
-        }
-        if (kind) break;
-      }
-      if (kind && this.promotionResolve) {
-        audio.blip("press");
-        this.promotionResolve(kind);
-      }
+      const kind = this.pickPromotion();
+      if (kind) this.choosePromotion(kind);
       return;
     }
 

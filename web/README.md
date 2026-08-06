@@ -24,7 +24,7 @@ bun run preview
 | Playing on a phone | Nothing to set — the framing is solved for the screen, see [Screen framing](#screen-framing) |
 | Select a figure | Click it (legal squares glow green, captures red) |
 | Move | Click a highlighted square — including one standing behind a figure, see [Clicking a square behind a figure](#clicking-a-square-behind-a-figure) (click the figure again to deselect) |
-| Promotion | Pick one of the four rotating figures on pedestals |
+| Promotion | Tap one of the four candidates — each stands on a plinth over a plate naming the rank — or press `Q` `R` `B` `N` (`1`-`4`) |
 | Camera | Camera icon in the top bar (presets, flip, tactical) |
 | Armies & battleground | Picked on the main menu before the duel; read-only in settings once a duel is running |
 | What a button does | Hover, focus or tap it — every icon carries a tooltip |

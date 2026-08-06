@@ -21,6 +21,7 @@ cd web && bun install && bun run dev
 - [Quick start](#quick-start)
 - [Controls](#controls)
 - [Interface](#interface)
+  - [Reading the promotion picker](#reading-the-promotion-picker)
 - [Game modes](#game-modes)
 - [Armies](#armies)
 - [Battlegrounds](#battlegrounds)
@@ -141,7 +142,7 @@ Cloudflare Pages or any static host. No environment variables are required to ru
 | Playing on a phone | Nothing to set: the framing, the lens and the orbit limits are solved for the screen (see [Fitting the hall to the screen](#fitting-the-hall-to-the-screen)) |
 | Select a figure | Click it — legal squares glow green, captures red |
 | Move | Click a highlighted square, even one hidden behind a figure (click the figure again to deselect) |
-| Promotion | Pick one of the four figures rotating on pedestals |
+| Promotion | Tap one of the four candidates turning on their plinths — each carries a plate naming the rank — or press `Q` `R` `B` `N` (`1`-`4`), see [Reading the promotion picker](#reading-the-promotion-picker) |
 | Camera & battleground | Camera icon in the top bar — Ivory / Obsidian / Overhead / Cinematic, flip, tactical, and the four arenas |
 | What a button does | Hover or focus it (tap it on touch) — every icon carries a tooltip |
 | Skip the intro | Click anywhere during the opening sweep |
@@ -233,6 +234,36 @@ The board owns the screen; every panel is either short, in a corner, or foldable
   sight picture over the whole interface; it was removed along with its extra lens punch-in, so a
   rifle kill is watched in the hall like every other one (see
   [Gunpowder combat](#gunpowder-combat-pistol-rifle-musket-and-field-gun)).
+
+### Reading the promotion picker
+
+A pawn reaching the last rank opens the one genuinely modal moment in the game, and it used to be
+the least readable thing on screen: four unlabelled sculpts hovering over the board's centre, at
+board depth. Measured against the shipped framing, each candidate was **103px tall on a 1440×900
+desktop and 38px on a 390×844 phone**, with **32–37% (desktop) and 94–100% (phone)** of every
+candidate's silhouette overlapped by the far army standing behind it. Nothing said which figure was
+which, and in this army it cannot be guessed: every officer is royal-height, so rook, bishop and
+queen differ only in what they hold.
+
+The picker is now staged as a modal:
+
+- **Named.** Each candidate stands over a **stone name plate** carrying the rank's own crest
+  silhouette — the same one it wears on the board — the rank spelled out, and the key that picks it.
+  The plate is a sprite, so it faces the player from any camera, the flat tactical view included, and
+  it is a click target itself (the easiest one to hit).
+- **Anchored to the camera, not the board.** The row is placed a solved distance in front of the
+  camera, so it reads identically at every framing and can never hide inside a rank of figures.
+- **Solved for the viewport.** Four across on a wide screen; a **2×2 grid** where the screen is too
+  narrow to hold four readable figures side by side (portrait phones). The distance is solved so the
+  whole picker fills 84% of the viewport's binding axis — the same figure that was 38px tall on a
+  phone is now ~115px, and ~197px on desktop.
+- **Backed by a scrim.** A dark panel is hung behind the candidates and resized to the viewport every
+  frame, with the existing cinematic depth-of-field focused on the picker rather than the board. The
+  army behind reads as a dimmed, blurred backdrop instead of clutter the candidates have to fight.
+- **Answerable from the keyboard.** `Q` `R` `B` `N` (or `1`–`4`) take the choice, printed on the
+  plates themselves; while the picker is open those keys belong to it and nothing else.
+- **Hover feedback.** The candidate under the pointer lifts, scales, brightens its plinth and its
+  plate, and the cursor turns to a pointer — a hover chirp fires once on entry, not per frame.
 
 ## Game modes
 

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { ARMY_SKINS, DEFAULT_ARMY_SKINS, type ArmySkinId } from "../assets/generated";
 import { audio } from "../audio/audioManager";
 import { GameController } from "../core/gameController";
-import type { Faction, LedgerMove } from "../core/types";
+import type { Faction, LedgerMove, PieceKind } from "../core/types";
 import { Clapperboard } from "lucide-react";
 import { ARENA_LOOKS, DEFAULT_ARENA } from "../scene/arena";
 import { detectQualityPreset, type QualityPreset } from "../scene/quality";
@@ -426,6 +426,16 @@ export function GameShell() {
       const target = event.target as HTMLElement | null;
       const typing = target ? /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable : false;
       if (typing || event.metaKey || event.ctrlKey || event.altKey || phase !== "playing") return;
+      // While a pawn waits on the last rank the keyboard belongs to the picker:
+      // the shortcut is printed on each candidate's own name plate.
+      if (promotionOpen) {
+        const key = event.key.toLowerCase();
+        const byLetter: Record<string, PieceKind | undefined> = { q: "q", r: "r", b: "b", n: "n" };
+        const byIndex: Record<string, PieceKind | undefined> = { "1": "q", "2": "r", "3": "b", "4": "n" };
+        const choice = byLetter[key] ?? byIndex[key];
+        if (choice && engineRef.current?.choosePromotion(choice)) event.preventDefault();
+        return;
+      }
       if (event.key === "f" || event.key === "F") handleFlipCamera();
       if (event.key === "t" || event.key === "T") handleToggleTactical();
       if (event.key === "c" || event.key === "C") setCinema((hidden) => !hidden);
@@ -436,7 +446,7 @@ export function GameShell() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [controller, handleFlipCamera, handleToggleTactical, phase, snapshot.mode]);
+  }, [controller, handleFlipCamera, handleToggleTactical, phase, promotionOpen, snapshot.mode]);
 
   const skipIntro = useCallback(() => {
     engineRef.current?.skipIntro();
@@ -541,10 +551,16 @@ export function GameShell() {
           </button>
         ) : null}
 
+        {/* The picker itself is in the scene — every candidate stands on a plinth
+            over a plate naming the rank. This banner only sets the moment and
+            repeats the shortcuts, and sits high so it never covers a candidate. */}
         {promotionOpen ? (
-          <div className="mc-fade pointer-events-none absolute inset-x-0 top-1/2 flex justify-center">
+          <div className="mc-fade pointer-events-none absolute inset-x-0 top-[13%] flex flex-col items-center gap-1.5">
             <p className="mc-display mc-slate px-4 py-2 text-xs tracking-[0.28em] text-[#f0dfb6]">
               CHOOSE THE NEW CHAMPION
+            </p>
+            <p className="mc-display text-[0.6rem] tracking-[0.3em] text-[#c8ab74]">
+              TAP A FIGURE · OR PRESS Q R B N
             </p>
           </div>
         ) : null}

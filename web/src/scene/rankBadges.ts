@@ -447,6 +447,130 @@ export function rankBadgeTexture(kind: PieceKind, faction: Faction): THREE.Canva
   return texture;
 }
 
+// ---------------------------------------------------------- promotion plaques
+
+const PLAQUE_WIDTH = 512;
+const PLAQUE_HEIGHT = 176;
+
+/** Plaque aspect, so the caller can size a sprite without re-deriving it. */
+export const PLAQUE_ASPECT = PLAQUE_WIDTH / PLAQUE_HEIGHT;
+
+function tablet(ctx: CanvasRenderingContext2D, inset: number): void {
+  const w = PLAQUE_WIDTH - inset * 2;
+  const h = PLAQUE_HEIGHT - inset * 2;
+  const cut = 22;
+  ctx.beginPath();
+  ctx.moveTo(inset + cut, inset);
+  ctx.lineTo(inset + w - cut, inset);
+  ctx.lineTo(inset + w, inset + cut);
+  ctx.lineTo(inset + w, inset + h - cut);
+  ctx.lineTo(inset + w - cut, inset + h);
+  ctx.lineTo(inset + cut, inset + h);
+  ctx.lineTo(inset, inset + h - cut);
+  ctx.lineTo(inset, inset + cut);
+  ctx.closePath();
+}
+
+/**
+ * The name plate under a promotion candidate: the rank's own crest glyph, the
+ * rank spelled out, and the key that picks it.
+ *
+ * The picker used to be four unlabelled sculpts hovering over the far army, and
+ * a 3D figure is a poor label — the two officers are the same height in this
+ * army and the sculpt only differs in its arms. Writing the rank underneath is
+ * the whole point of this texture; the crest is the same silhouette the figure
+ * already wears on the board, so the choice and the result read as one thing.
+ */
+export function promotionPlaqueTexture(kind: PieceKind, faction: Faction, label: string, key: string): THREE.CanvasTexture {
+  const cacheKey = `plaque_${faction}${kind}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
+  const theme = THEMES[faction];
+  const canvas = document.createElement("canvas");
+  canvas.width = PLAQUE_WIDTH;
+  canvas.height = PLAQUE_HEIGHT;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2d canvas unavailable");
+
+  // Stone tablet, lit from above so it does not read as a flat UI rectangle.
+  const plate = ctx.createLinearGradient(0, 8, 0, PLAQUE_HEIGHT - 8);
+  plate.addColorStop(0, "rgba(26,24,20,0.94)");
+  plate.addColorStop(1, "rgba(9,8,7,0.94)");
+  ctx.shadowColor = "rgba(0,0,0,0.8)";
+  ctx.shadowBlur = 14;
+  tablet(ctx, 10);
+  ctx.fillStyle = plate;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.lineJoin = "round";
+  tablet(ctx, 10);
+  ctx.strokeStyle = theme.rim;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  tablet(ctx, 19);
+  ctx.strokeStyle = "rgba(255,255,255,0.16)";
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+
+  // Army colour bled in from the left edge, the same code as the band under the
+  // figure's feet — so an ivory plaque is never mistaken for an ember one.
+  const wash = ctx.createLinearGradient(10, 0, 190, 0);
+  wash.addColorStop(0, theme.plate);
+  wash.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.save();
+  tablet(ctx, 12);
+  ctx.clip();
+  ctx.fillStyle = wash;
+  ctx.fillRect(0, 0, PLAQUE_WIDTH, PLAQUE_HEIGHT);
+  ctx.restore();
+
+  // Crest: the rank silhouette, drawn on the glyphs' own 100x100 grid.
+  ctx.save();
+  ctx.translate(44, PLAQUE_HEIGHT / 2 - 46);
+  ctx.scale(0.92, 0.92);
+  ctx.shadowColor = theme.glow;
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = theme.glyph;
+  GLYPHS[kind](ctx);
+  ctx.fill("nonzero");
+  ctx.restore();
+
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  ctx.font = `600 54px "Cinzel", Georgia, serif`;
+  ctx.fillStyle = "#f6e6c2";
+  ctx.shadowColor = "rgba(0,0,0,0.9)";
+  ctx.shadowBlur = 6;
+  const letters = label.toUpperCase().split("").join("\u2009");
+  ctx.fillText(letters, 150, PLAQUE_HEIGHT / 2 - 2);
+  ctx.shadowBlur = 0;
+
+  // Key cap, right-aligned: the plaque doubles as the keyboard legend.
+  const capSize = 52;
+  const capX = PLAQUE_WIDTH - 34 - capSize;
+  const capY = (PLAQUE_HEIGHT - capSize) / 2;
+  ctx.beginPath();
+  ctx.roundRect(capX, capY, capSize, capSize, 12);
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.28)";
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+  ctx.textAlign = "center";
+  ctx.font = `600 30px "Cinzel", Georgia, serif`;
+  ctx.fillStyle = theme.rim;
+  ctx.fillText(key.toUpperCase(), capX + capSize / 2, capY + capSize / 2 + 1);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  texture.needsUpdate = true;
+  cache.set(cacheKey, texture);
+  return texture;
+}
+
 /** Frees every cached badge texture (engine teardown only). */
 export function disposeRankBadgeTextures(): void {
   for (const texture of cache.values()) texture.dispose();
