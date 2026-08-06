@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
+import { useHasKeyboard } from "./inputMode";
+
 export type TooltipSide = "bottom" | "top" | "left";
 
 interface TooltipProps {
@@ -7,7 +9,11 @@ interface TooltipProps {
   label: string;
   /** Optional second line explaining what the control does. */
   hint?: string;
-  /** Optional keyboard shortcut, shown as a key cap (e.g. "F", "Space"). */
+  /**
+   * Optional keyboard shortcut, shown as a key cap (e.g. "F", "Space") — and
+   * only on a device that has keys. Callers pass it unconditionally; the cap is
+   * dropped here so no control has to know what it is being read on.
+   */
   keys?: string;
   /** Where the bubble hangs relative to the control. */
   side?: TooltipSide;
@@ -33,6 +39,7 @@ let lastClosedAt = 0;
 export function Tooltip({ label, hint, keys, side = "bottom", children }: TooltipProps) {
   const anchorRef = useRef<HTMLSpanElement | null>(null);
   const timerRef = useRef<number | null>(null);
+  const hasKeyboard = useHasKeyboard();
   const [align, setAlign] = useState<"start" | "end">("end");
   const [open, setOpen] = useState(false);
 
@@ -121,7 +128,7 @@ export function Tooltip({ label, hint, keys, side = "bottom", children }: Toolti
       {open ? (
         <span className="mc-tip" role="tooltip" data-side={side} data-align={align} style={style}>
           <span className="mc-tip-label">{label}</span>
-          {keys ? <span className="mc-tip-key">{keys}</span> : null}
+          {keys && hasKeyboard ? <span className="mc-tip-key">{keys}</span> : null}
           {hint ? <span className="mc-tip-hint">{hint}</span> : null}
         </span>
       ) : null}

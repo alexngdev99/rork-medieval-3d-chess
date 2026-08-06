@@ -3,6 +3,7 @@ import { Clapperboard, Crown, Swords, Settings as SettingsIcon, Users } from "lu
 
 import type { DemoOptions, Difficulty, Faction } from "../core/types";
 import { Crest } from "./Heraldry";
+import { useHasKeyboard } from "./inputMode";
 import { MusterSection, type MusterChoice } from "./Muster";
 
 export interface MatchConfig {
@@ -44,6 +45,7 @@ const CLOCKS: { label: string; value: number | null }[] = [
 ];
 
 export function MainMenu({ onStart, onOpenSettings, muster, onMuster, attract, onInteract }: MainMenuProps) {
+  const hasKeyboard = useHasKeyboard();
   const [tab, setTab] = useState<"ai" | "hotseat" | "demo">("ai");
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [playerColor, setPlayerColor] = useState<Faction>("w");
@@ -148,14 +150,28 @@ export function MainMenu({ onStart, onOpenSettings, muster, onMuster, attract, o
           </div>
         ) : tab === "hotseat" ? (
           <p className="mc-fade text-sm italic leading-relaxed text-[#b7a88a]">
-            Two commanders, one board. The camera swings to the player on move — you can disable that in settings.
+            Two commanders, one board. The view holds its angle between turns —{" "}
+            {hasKeyboard ? (
+              <>
+                flip it whenever you like with <span className="mc-display text-[#e2c98f]">F</span>, or
+              </>
+            ) : (
+              <>flip it whenever you like from the camera menu, or</>
+            )}{" "}
+            switch on the automatic swing in settings.
           </p>
         ) : (
           <div className="mc-fade space-y-5">
             <p className="text-sm italic leading-relaxed text-[#b7a88a]">
               Two AI commanders duel on their own while the camera drifts around the hall — made for watching and for
-              capturing footage. Press{" "}
-              <span className="mc-display text-[#e2c98f]">C</span> in the match to hide the whole interface.
+              capturing footage.{" "}
+              {hasKeyboard ? (
+                <>
+                  Press <span className="mc-display text-[#e2c98f]">C</span> in the match to hide the whole interface.
+                </>
+              ) : (
+                <>Tap the clean-capture sigil in the match to hide the whole interface.</>
+              )}
             </p>
 
             <div>
@@ -273,8 +289,12 @@ export function MainMenu({ onStart, onOpenSettings, muster, onMuster, attract, o
         </div>
       </div>
 
+      {/* The hall is driven differently by a finger than by a mouse, so the
+          standing instruction names only the gestures this device actually has. */}
       <p className="mc-menu-hint mt-5 shrink-0 text-[0.68rem] tracking-[0.2em] text-[#7d6f57]">
-        DRAG TO ORBIT · SCROLL TO ZOOM · CLICK A FIGURE TO COMMAND IT
+        {hasKeyboard
+          ? "DRAG TO ORBIT · SCROLL TO ZOOM · CLICK A FIGURE TO COMMAND IT"
+          : "DRAG TO ORBIT · PINCH TO ZOOM · TAP A FIGURE TO COMMAND IT"}
       </p>
     </div>
   );

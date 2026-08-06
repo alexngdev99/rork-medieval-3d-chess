@@ -4,6 +4,7 @@ import type { ArmySkinId } from "../assets/generated";
 import type { Faction } from "../core/types";
 import type { ArenaTheme } from "../scene/arena";
 import type { QualityPreset } from "../scene/quality";
+import { useHasKeyboard } from "./inputMode";
 import { MusterLocked, MusterSection } from "./Muster";
 
 export interface GameSettings {
@@ -59,6 +60,8 @@ export function SettingsPanel({
   onChange,
   onClose,
 }: SettingsPanelProps) {
+  /** A phone has no `F` to press, so the note names the button instead. */
+  const hasKeyboard = useHasKeyboard();
   return (
     <div className="mc-modal-pad pointer-events-auto absolute inset-0 z-20 flex flex-col items-center justify-center overflow-hidden bg-black/60 backdrop-blur-sm">
       <div className="mc-slate mc-goldleaf mc-rise flex max-h-full w-full min-h-0 max-w-lg flex-col p-5 sm:p-6">
@@ -140,7 +143,9 @@ export function SettingsPanel({
         />
         <Toggle
           label="Swing camera between turns"
-          note="Two-player hotseat only — off by default; a half turn every ply is a lot of motion. Flip by hand any time with F"
+          note={`Two-player hotseat only — off by default; a half turn every ply is a lot of motion. Flip by hand any time ${
+            hasKeyboard ? "with F" : "from the camera menu"
+          }`}
           value={settings.rotateBoard}
           onChange={(value) => onChange({ ...settings, rotateBoard: value })}
         />

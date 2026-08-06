@@ -10,6 +10,7 @@ import { detectQualityPreset, type QualityPreset } from "../scene/quality";
 import { SceneEngine, type CameraPreset, type ShowcaseCamera } from "../scene/sceneEngine";
 import { GameOverModal } from "./GameOverModal";
 import { Hud } from "./Hud";
+import { useHasKeyboard } from "./inputMode";
 import { MainMenu, type MatchConfig } from "./MainMenu";
 import type { MusterChoice } from "./Muster";
 import { SettingsPanel, type GameSettings } from "./SettingsPanel";
@@ -126,6 +127,8 @@ export function GameShell() {
   const initialRender = useMemo<RenderPrefs>(() => loadRenderPrefs(), []);
   const initialArmies = useMemo<Record<Faction, ArmySkinId>>(() => loadArmyPrefs(), []);
   const initialSeatSwing = useMemo<boolean>(() => loadSeatSwing(), []);
+  /** Whether to print key hints at all — a phone has no `F` to press. */
+  const hasKeyboard = useHasKeyboard();
   const [settings, setSettings] = useState<GameSettings>(() => ({
     quality: detected,
     arena: DEFAULT_ARENA,
@@ -573,7 +576,7 @@ export function GameShell() {
             type="button"
             className="mc-cinema-restore pointer-events-auto"
             onClick={() => setCinema(false)}
-            title="Show the interface again (C)"
+            title={hasKeyboard ? "Show the interface again (C)" : "Show the interface again"}
             aria-label="Show the interface again"
           >
             <Clapperboard size={15} />
@@ -589,7 +592,7 @@ export function GameShell() {
               CHOOSE THE NEW CHAMPION
             </p>
             <p className="mc-display text-[0.6rem] tracking-[0.3em] text-[#c8ab74]">
-              TAP A FIGURE · OR PRESS Q R B N
+              {hasKeyboard ? "TAP A FIGURE · OR PRESS Q R B N" : "TAP A FIGURE"}
             </p>
           </div>
         ) : null}
@@ -600,7 +603,9 @@ export function GameShell() {
             onClick={skipIntro}
             className="pointer-events-auto absolute inset-0 flex cursor-pointer items-end justify-center bg-transparent pb-10"
           >
-            <span className="mc-display mc-pulse text-[0.68rem] tracking-[0.4em] text-[#c8ab74]">CLICK TO SKIP</span>
+            <span className="mc-display mc-pulse text-[0.68rem] tracking-[0.4em] text-[#c8ab74]">
+              {hasKeyboard ? "CLICK TO SKIP" : "TAP TO SKIP"}
+            </span>
           </button>
         ) : null}
 

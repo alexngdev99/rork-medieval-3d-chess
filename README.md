@@ -165,7 +165,8 @@ unchanged. Every occluded destination also draws its reticle *through* the body 
 the square can be seen as well as clicked. Details and the numbers: [Clicking a square behind a
 figure](web/README.md#clicking-a-square-behind-a-figure).
 
-Keyboard shortcuts (ignored while typing in a field):
+Keyboard shortcuts (ignored while typing in a field, and **not printed on a phone** — see [Key hints
+only where there are keys](web/README.md#key-hints-only-where-there-are-keys)):
 
 | Key | Action |
 | --- | --- |
@@ -175,6 +176,13 @@ Keyboard shortcuts (ignored while typing in a field):
 | `C` | Toggle cinema mode (hide the entire interface) |
 | `Space` | Pause / resume playback in showcase mode |
 | `Esc` | Close the settings panel, camera menu, chronicle or an open tooltip |
+
+**A phone is never told to press a key.** Every hint above — the key caps in the tooltips, the
+`(T)`/`(F)`/`(C)` reminders, the promotion banner's *OR PRESS Q R B N*, *SCROLL TO ZOOM*, *CLICK TO
+SKIP* — used to be printed on touch devices too: **13 places naming a key or a mouse gesture the
+device does not have**, on the screen with the least room to waste. They now check first, and a
+tablet that gets a case keyboard earns its key caps back the first time a real key arrives. Where the
+gesture differs the wording follows the hand: *PINCH TO ZOOM*, *TAP TO SKIP*, *TAP A FIGURE*.
 
 ## Interface
 
@@ -204,7 +212,7 @@ The board owns the screen; every panel is either short, in a corner, or foldable
 
 - **Tooltips** (`src/ui/Tooltip.tsx`) replace the browser's native `title`, which appears too
   late to explain an icon. Each bubble carries the control's name, one sentence of
-  explanation and a key cap when there is a shortcut. It opens after 110 ms, then **instantly**
+  explanation and a key cap when there is a shortcut *and* the device has keys. It opens after 110 ms, then **instantly**
   for the rest of a sweep along the rail, picks the screen edge that keeps it in view, flashes
   for 1.8 s on a touch press (touch has no hover), and closes on Escape, blur or scroll. The
   bubble is rendered inside its anchor rather than through a body portal, so it survives

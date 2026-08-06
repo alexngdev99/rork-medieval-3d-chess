@@ -35,6 +35,9 @@ bun run preview
 There is no drag-and-drop; both selecting and moving resolve on pointer release, and a press
 that travels more than 8px (16px for a finger) counts as a camera swing instead.
 
+Key hints are printed only on devices that have keys — see [Key hints only where there are
+keys](#key-hints-only-where-there-are-keys).
+
 | Key | Action |
 | --- | --- |
 | `F` | Flip the camera to the other side |
@@ -43,6 +46,32 @@ that travels more than 8px (16px for a finger) counts as a camera swing instead.
 | `C` | Cinema mode — hide the whole overlay |
 | `Space` | Pause / resume a showcase duel |
 | `Esc` | Close the settings panel, camera menu, chronicle or tooltip |
+
+### Key hints only where there are keys
+
+Every shortcut hint was unconditional, so a phone was told to press keys it does not have in **13
+places**: 4 key caps still reachable in the tooltips (`T`, `H`, `C`, `Space` — `F` was already
+`wideOnly`), 3 native `title` reminders (`(T)`, `(F)` in the camera menu, `(C)` on the cinema restore
+button), and 6 lines of copy (the promotion banner's *OR PRESS Q R B N*, the menu's *SCROLL TO ZOOM ·
+CLICK A FIGURE*, *CLICK TO SKIP*, the hotseat and AI-vs-AI blurbs, the board-swing note). That is
+noise on the screen with the least room for it, and it also mis-describes the gesture: there is no
+scroll wheel to zoom with and no click to skip an intro.
+
+`src/ui/inputMode.ts` answers the one question that matters — `useHasKeyboard()`:
+
+- The test is `(pointer: coarse) and (hover: none)`, not a user-agent string. A touchscreen laptop
+  still reports `hover: hover` because it also has a trackpad, so it keeps its key caps.
+- **A real keydown overrides the media query.** An iPad in a case keyboard proves it has keys the
+  first time one arrives, and every hint reappears — trusted events only, and keys typed into an
+  `input`/`textarea`/`contenteditable` are ignored, because an on-screen keyboard fires those too.
+- One `useSyncExternalStore` subscription is shared by all callers (~20 tooltips), so the twenty
+  controls do not open twenty media listeners.
+
+`Tooltip.tsx` drops the cap itself, so callers keep passing `keys="T"` unconditionally and no control
+has to know what it is being read on. Where the gesture genuinely differs the copy changes rather
+than disappearing: *PINCH TO ZOOM*, *TAP A FIGURE TO COMMAND IT*, *TAP TO SKIP*, and “flip from the
+camera menu” instead of “flip with `F`”. The shortcuts themselves are untouched — this is about what
+is advertised, not what works.
 
 ### Hotseat: the view holds still
 
@@ -204,7 +233,7 @@ instead of off the snapshot — the core publishes only on real events, and a pa
 re-render the whole overlay.
 
 `Tooltip.tsx` explains the icon-only controls — name, one sentence, and a key cap when there is a
-shortcut. It opens after 110 ms, then instantly for the rest of a sweep along the rail, aligns to
+shortcut *and* `useHasKeyboard()` says there are keys. It opens after 110 ms, then instantly for the rest of a sweep along the rail, aligns to
 whichever screen edge keeps it visible, flashes for 1.8 s on a touch press, and closes on Escape,
 blur or scroll. It renders inside its anchor rather than a body portal so it survives fullscreen.
 

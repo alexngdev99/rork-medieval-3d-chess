@@ -29,6 +29,7 @@ import {
 import type { ElapsedState, Faction, GameSnapshot, LedgerMove, PieceKind } from "../core/types";
 import type { CameraPreset, ShowcaseCamera } from "../scene/sceneEngine";
 import { Crest, Hourglass, pieceGlyph } from "./Heraldry";
+import { useHasKeyboard } from "./inputMode";
 import { MoveLedger } from "./MoveLedger";
 import { Tooltip, type TooltipSide } from "./Tooltip";
 
@@ -155,6 +156,8 @@ export function Hud({
   getElapsed,
 }: HudProps) {
   const railRoom = useRoomForRail();
+  /** Key hints are printed only where there are keys to press. */
+  const hasKeyboard = useHasKeyboard();
   // Beside the board the record costs the player nothing, so it stands open from
   // the first move; on a phone it would cover ranks, so there it stays folded.
   const [chronicleOpen, setChronicleOpen] = useState(() =>
@@ -428,7 +431,11 @@ export function Hud({
                       setCameraMenuOpen(false);
                       onToggleTactical();
                     }}
-                    title="Flat overhead map — no figures in the way (T)"
+                    title={
+                      hasKeyboard
+                        ? "Flat overhead map — no figures in the way (T)"
+                        : "Flat overhead map — no figures in the way"
+                    }
                     aria-pressed={tactical}
                   >
                     <LayoutGrid size={13} />
@@ -440,7 +447,11 @@ export function Hud({
                     className="mc-chip mc-chip-flip flex w-full items-center gap-1.5"
                     data-active={cameraFlipped}
                     onClick={onFlipCamera}
-                    title="Swing the camera to the opposite side (F)"
+                    title={
+                      hasKeyboard
+                        ? "Swing the camera to the opposite side (F)"
+                        : "Swing the camera to the opposite side"
+                    }
                     aria-pressed={cameraFlipped}
                   >
                     <Repeat
