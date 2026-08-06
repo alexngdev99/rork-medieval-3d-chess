@@ -26,6 +26,7 @@ bun run preview
 | Promotion | Tap a candidate, or press `Q` `R` `B` `N` — see [The promotion picker](#the-promotion-picker) |
 | Move | Click a highlighted square — including one standing behind a figure, see [Clicking a square behind a figure](#clicking-a-square-behind-a-figure) (click the figure again to deselect) |
 | Camera | Camera icon in the top bar (presets, flip, tactical) |
+| Two players on one screen | The board does **not** turn itself between turns — see [Hotseat: the view holds still](#hotseat-the-view-holds-still) |
 | Armies & battleground | Picked on the main menu before the duel; read-only in settings once a duel is running |
 | What a button does | Hover, focus or tap it — every icon carries a tooltip |
 | Skip the intro | Click anywhere during the opening sweep |
@@ -42,6 +43,22 @@ that travels more than 8px (16px for a finger) counts as a camera swing instead.
 | `C` | Cinema mode — hide the whole overlay |
 | `Space` | Pause / resume a showcase duel |
 | `Esc` | Close the settings panel, camera menu, chronicle or tooltip |
+
+### Hotseat: the view holds still
+
+Two-player hotseat used to swing the camera a **half turn round the hall after every ply**, on by
+default. That is the single heaviest camera move in the game, and in hotseat it fires **twice a
+minute** — at chess pace, roughly every 15–30 seconds, forever. It also fires *unbidden*, at the end
+of a move the player was already tracking, which is exactly the recipe for motion sickness: a large
+vestibular-conflict movement the viewer did not initiate and cannot predict. Players sitting side by
+side at one screen do not need the board re-oriented anyway — they need to keep their bearings.
+
+So `rotateBoard` now defaults to **off** and the choice is **remembered** (`kg.table` in
+`localStorage`, alongside the render and army prefs). Reaching for it is one toggle in settings
+(*Swing camera between turns*), and when it is on the swing is slower than it was — **1.15s → 1.8s**,
+so it reads as the hall turning rather than a cut. The manual flip is untouched: `F`, or the flip
+button in the camera menu, still turns the view instantly whenever a player wants it, and being asked
+for is what makes it comfortable.
 
 ### Clicking a square behind a figure
 

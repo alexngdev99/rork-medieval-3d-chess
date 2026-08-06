@@ -998,7 +998,12 @@ export class SceneEngine {
   /** Travels with the camera so the near face of every figure stays readable. */
   private cameraLamp: THREE.DirectionalLight;
   private captureCinematics = true;
-  private rotateBoard = true;
+  /**
+   * Hotseat: whether a played turn swings the view round to the other side. Off
+   * unless the player asks for it — a half turn of the hall between every ply is
+   * the heaviest motion in the game and it fires twice a minute.
+   */
+  private rotateBoard = false;
   private rankBadges = true;
   private interactive = true;
   private attract = false;
@@ -3934,9 +3939,14 @@ export class SceneEngine {
     return this.cameraFlipped;
   }
 
-  /** Hotseat: swing the camera round the board between turns. */
+  /**
+   * Hotseat: swing the camera round the board between turns. Opt-in, and slower
+   * than the hand flip (1.15s -> 1.8s): a flip is asked for and watched, whereas
+   * this one arrives unbidden at the end of a move the player was already
+   * following, so it has to read as the hall turning rather than a cut.
+   */
   private async swingCamera(): Promise<void> {
-    await this.orbitBy(Math.PI, 1.15);
+    await this.orbitBy(Math.PI, 1.8);
   }
 
   async playIntro(): Promise<void> {

@@ -140,7 +140,7 @@ export function SettingsPanel({
         />
         <Toggle
           label="Swing camera between turns"
-          note="Two-player hotseat only"
+          note="Two-player hotseat only — off by default; a half turn every ply is a lot of motion. Flip by hand any time with F"
           value={settings.rotateBoard}
           onChange={(value) => onChange({ ...settings, rotateBoard: value })}
         />

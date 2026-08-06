@@ -28,6 +28,7 @@ const ATTRACT_DELAY_MS = 30_000;
 const SHOWCASE_VERDICT_DELAY_MS = 2200;
 const RENDER_PREFS_KEY = "kg.render";
 const ARMY_PREFS_KEY = "kg.armies";
+const TABLE_PREFS_KEY = "kg.table";
 
 interface RenderPrefs {
   safeMode: boolean;
@@ -53,6 +54,32 @@ function loadArmyPrefs(): Record<Faction, ArmySkinId> {
 function saveArmyPrefs(skins: Record<Faction, ArmySkinId>): void {
   try {
     window.localStorage.setItem(ARMY_PREFS_KEY, JSON.stringify(skins));
+  } catch {
+    // Private browsing — the choice just will not survive the reload.
+  }
+}
+
+/**
+ * Whether a hotseat turn swings the camera round to the other side.
+ *
+ * Off by default, and remembered: a half turn of the whole hall between every
+ * single ply is the most motion in the game, and on a shared screen it fires
+ * twice a minute. Two players sitting side by side at one screen do not need the
+ * board re-oriented — they need to keep their bearings. The swing stays one tap
+ * away in settings, and the manual flip (`F`) is unaffected.
+ */
+function loadSeatSwing(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(TABLE_PREFS_KEY) === "swing";
+  } catch {
+    return false;
+  }
+}
+
+function saveSeatSwing(enabled: boolean): void {
+  try {
+    window.localStorage.setItem(TABLE_PREFS_KEY, enabled ? "swing" : "hold");
   } catch {
     // Private browsing — the choice just will not survive the reload.
   }
@@ -98,12 +125,13 @@ export function GameShell() {
   const detected = useMemo<QualityPreset>(() => detectQualityPreset(), []);
   const initialRender = useMemo<RenderPrefs>(() => loadRenderPrefs(), []);
   const initialArmies = useMemo<Record<Faction, ArmySkinId>>(() => loadArmyPrefs(), []);
+  const initialSeatSwing = useMemo<boolean>(() => loadSeatSwing(), []);
   const [settings, setSettings] = useState<GameSettings>(() => ({
     quality: detected,
     arena: DEFAULT_ARENA,
     skins: initialArmies,
     captureCinematics: true,
-    rotateBoard: true,
+    rotateBoard: initialSeatSwing,
     rankBadges: true,
     muted: false,
     safeMode: initialRender.safeMode,
@@ -235,6 +263,7 @@ export function GameShell() {
     audio.setMuted(settings.muted);
     saveRenderPrefs({ safeMode: settings.safeMode, brightness: settings.brightness });
     saveArmyPrefs(settings.skins);
+    saveSeatSwing(settings.rotateBoard);
   }, [settings, phase]);
 
   // ------------------------------------------------------------- attract mode

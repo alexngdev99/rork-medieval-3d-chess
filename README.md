@@ -276,11 +276,21 @@ The picker is now staged as a modal:
 | Mode | What it is |
 | --- | --- |
 | **Player vs Computer** | Pick your colour, an engine strength and an optional clock |
-| **Two players** | Hotseat on one screen; the camera swings round between turns (switchable) |
+| **Two players** | Hotseat on one screen; the view **holds still** — flip it by hand with `F`, or switch on the automatic swing between turns (see below) |
 | **AI vs AI** | Two engines duel on their own — per-side strength, 0.5×–4× pace, auto-rematch, still / follow / orbit camera, foldable rail, verdict card at the end |
 | **Attract** | Leave the menu alone for 30 seconds and an AI vs AI duel starts behind it |
 
 Clocks: none, 5, 10 or 15 minutes, drawn as draining hourglasses.
+
+**Hotseat does not turn the board for you.** It used to: a half turn round the hall after every
+single ply, on by default. That is the heaviest camera move in the game, and at chess pace it fired
+roughly every 15–30 seconds — unbidden, right at the end of a move the player was already following,
+which is precisely how a camera makes someone queasy. Two players sitting at one screen do not need
+the board re-oriented; they need to keep their bearings. So the swing is **off by default** and your
+choice is remembered across visits. Switch it back on under *Settings → Swing camera between turns*
+and it now takes **1.8s instead of 1.15s**, so it reads as the hall turning rather than a cut. The
+manual flip is unchanged — `F` or the flip button spins the view the instant you ask for it, and
+asking for it is what makes it comfortable.
 
 ## Armies
 
