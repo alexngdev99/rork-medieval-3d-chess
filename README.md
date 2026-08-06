@@ -264,6 +264,12 @@ The picker is now staged as a modal:
   plates themselves; while the picker is open those keys belong to it and nothing else.
 - **Hover feedback.** The candidate under the pointer lifts, scales, brightens its plinth and its
   plate, and the cursor turns to a pointer — a hover chirp fires once on entry, not per frame.
+- **Nothing draws over it.** The floating rank crests and the x-ray square reticles are deliberately
+  drawn *through* whatever stands in the way — that is the whole point of them — and that licence
+  also carried them straight through the picker: the crests of the army behind were landing on top of
+  the candidates and their name plates. Sitting on a higher layer cannot fix that on its own, so
+  while the picker is up those two overlays stand down, and they come back the moment it closes. Your
+  own crest setting is untouched; this is a separate, temporary mute.
 
 ## Game modes
 

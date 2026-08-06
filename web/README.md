@@ -23,8 +23,8 @@ bun run preview
 | Orbit / zoom | Drag, mouse wheel (pinch on touch) |
 | Playing on a phone | Nothing to set — the framing is solved for the screen, see [Screen framing](#screen-framing) |
 | Select a figure | Click it (legal squares glow green, captures red) |
+| Promotion | Tap a candidate, or press `Q` `R` `B` `N` — see [The promotion picker](#the-promotion-picker) |
 | Move | Click a highlighted square — including one standing behind a figure, see [Clicking a square behind a figure](#clicking-a-square-behind-a-figure) (click the figure again to deselect) |
-| Promotion | Tap one of the four candidates — each stands on a plinth over a plate naming the rank — or press `Q` `R` `B` `N` (`1`-`4`) |
 | Camera | Camera icon in the top bar (presets, flip, tactical) |
 | Armies & battleground | Picked on the main menu before the duel; read-only in settings once a duel is running |
 | What a button does | Hover, focus or tap it — every icon carries a tooltip |
@@ -72,6 +72,39 @@ body, so `board.ts` draws each destination reticle a second time with `depthTest
 additively, at `XRAY_OPACITY` (0.26–0.38 of full) — an occluded square reads as light bleeding
 through the figure. Locked to the marker's own scale and spin at 0.9×, so where nothing is in the
 way the two read as one mark rather than a double exposure.
+
+### The promotion picker
+
+A promoting pawn opens the only genuinely modal moment in the game, and it used to be the least
+readable thing on screen: four unlabelled sculpts at board depth. Sampled with the shipped framing,
+each candidate stood **103px tall on a 1440×900 window and 38px on a 390×844 phone**, with
+**32–37% (desktop) and 94–100% (phone)** of every silhouette overlapped by the army behind it. The
+sculpt cannot carry the choice on its own either — every officer here is royal-height and rook,
+bishop and queen differ only in what they hold, a few pixels of weapon at picker size.
+
+So the picker is staged as a modal. `buildPromotionPicker()` gives each candidate a plinth and a
+sprite **name plate** carrying the rank's crest, the rank spelled out and the key that picks it (the
+plate is the biggest click target of the four). `layoutPromotionPicker()` anchors the group to the
+**camera** rather than the board — a solved distance forward, `lookAt` the camera — so it reads the
+same at every framing and can never end up inside a rank of figures. The distance is solved from the
+lens so the grid fills `PROMOTION_FILL` (84%) of the binding axis, four across on a wide screen and a
+**2×2 grid** below `aspect 1.05`: the 38px phone figure becomes ~115px. The figure turns inside its
+own `spin` child so the idle rotation never swings the plate out of line, and a full-screen scrim is
+hung behind the group with the cinematic depth of field refocused onto the picker.
+
+**Depth-ignoring overlays have to stand down while it is up.** Rank crests (`renderOrder 40`) and the
+x-ray reticles (`renderOrder 9`) are drawn with `depthTest: false` on purpose, and that licence let
+them punch straight through the picker — the crests of the army behind landed on top of the
+candidates and their name plates. Render order alone cannot fix it: the plinths and sculpts are
+opaque, so three.js draws them in the opaque pass *before* every transparent sprite, whatever their
+`renderOrder`. The overlays leave instead — `setBoardOverlaysMuted()` calls `PieceView.setBadgeMuted()`
+and `Board.setOverlaysMuted()`, a **separate mute from the player's crest preference**, restored when
+the picker closes. Only the plate keeps `depthTest: false`, at `renderOrder 60`, so it is never cut
+by its own plinth.
+
+`Q` `R` `B` `N` (or `1`–`4`) answer from the keyboard: while the picker is open `GameShell`'s key
+handler routes everything into `choosePromotion()` and nothing else. Hover lifts the candidate,
+brightens its plinth and plate, and chirps once on entry rather than per frame.
 
 ## Screen framing
 

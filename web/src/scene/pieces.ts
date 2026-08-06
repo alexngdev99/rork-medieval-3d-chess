@@ -560,6 +560,8 @@ export class PieceView {
   /** Floating rank crest; billboards itself because it is a sprite. */
   private badge: THREE.Sprite | null = null;
   private badgeWanted = true;
+  /** Held down while something modal owns the screen (the promotion picker). */
+  private badgeMuted = false;
   private badgeOpacity = 0;
   /** Global fade applied by the tray / death choreography. */
   private fade = 1;
@@ -711,10 +713,28 @@ export class PieceView {
   setBadgeEnabled(enabled: boolean): void {
     this.badgeWanted = enabled;
     if (!this.badge) return;
-    this.badge.visible = enabled && !this.slain;
+    this.badge.visible = enabled && !this.badgeMuted && !this.slain;
     if (!enabled) {
       this.badgeOpacity = 0;
       (this.badge.material as THREE.SpriteMaterial).opacity = 0;
+    }
+  }
+
+  /**
+   * Pulls the crest off screen without touching the player's preference. A crest
+   * ignores the depth buffer on purpose, so while a modal panel is up it would
+   * otherwise punch straight through it.
+   */
+  setBadgeMuted(muted: boolean): void {
+    if (this.badgeMuted === muted) return;
+    this.badgeMuted = muted;
+    if (!this.badge) return;
+    if (muted) {
+      this.badge.visible = false;
+      this.badgeOpacity = 0;
+      (this.badge.material as THREE.SpriteMaterial).opacity = 0;
+    } else {
+      this.badge.visible = this.badgeWanted && !this.slain && !this.flat;
     }
   }
 
@@ -731,7 +751,7 @@ export class PieceView {
     if (enabled && !this.token) this.buildToken();
     this.visual.visible = !enabled;
     if (this.shadow) this.shadow.visible = !enabled;
-    if (this.badge) this.badge.visible = !enabled && this.badgeWanted && !this.slain;
+    if (this.badge) this.badge.visible = !enabled && this.badgeWanted && !this.badgeMuted && !this.slain;
     if (this.token) this.token.visible = enabled;
     // A strike frozen mid-clip while the board was flat has to be released.
     if (!enabled && !this.slain && this.mixer) this.returnToStance(0.2);
@@ -790,7 +810,7 @@ export class PieceView {
   private updateBadge(delta: number, elapsed: number, alarmPulse: number): void {
     const badge = this.badge;
     if (!badge) return;
-    const visible = this.badgeWanted && !this.slain && !this.flat;
+    const visible = this.badgeWanted && !this.badgeMuted && !this.slain && !this.flat;
     badge.visible = visible;
     if (!visible) return;
 

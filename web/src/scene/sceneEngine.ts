@@ -4066,7 +4066,7 @@ export class SceneEngine {
       );
       plaque.scale.set(PROMOTION_SLOT_WIDTH, PROMOTION_SLOT_WIDTH / PLAQUE_ASPECT, 1);
       plaque.position.y = -0.5;
-      plaque.renderOrder = 42;
+      plaque.renderOrder = 60;
       plaque.frustumCulled = false;
       // The plate is the easiest thing to aim at, so it picks too.
       plaque.userData.promotion = kind;
@@ -4094,6 +4094,7 @@ export class SceneEngine {
     this.scene.add(group);
     this.promotionGroup = group;
     this.promotionHover = null;
+    this.setBoardOverlaysMuted(true);
     this.layoutPromotionPicker(0);
     this.callbacks.onPromotionOpen(true);
   }
@@ -4182,8 +4183,28 @@ export class SceneEngine {
     this.promotionSlots = [];
     this.promotionScrim = null;
     this.promotionHover = null;
+    this.setBoardOverlaysMuted(false);
     this.postfx.setCinematic(false);
     this.callbacks.onPromotionOpen(false);
+  }
+
+  /**
+   * Stands the depth-ignoring board overlays down while the picker is up.
+   *
+   * Rank crests and the x-ray reticles are drawn with `depthTest: false` on
+   * purpose — a crest hidden behind the figure in front of it would be useless.
+   * The same licence lets them punch through a modal panel: the crests of the
+   * army standing behind the picker were landing on top of the candidates and
+   * their name plates. Render order alone cannot fix it, because the plinths and
+   * sculpts are opaque and so are drawn before every transparent sprite; the
+   * overlays have to leave instead. The player's own crest preference is left
+   * untouched — this is a separate mute, restored when the picker closes.
+   */
+  private setBoardOverlaysMuted(muted: boolean): void {
+    for (const piece of this.pieces.values()) piece.setBadgeMuted(muted);
+    for (const piece of this.motion) piece.setBadgeMuted(muted);
+    for (const piece of this.captured) piece.setBadgeMuted(muted);
+    this.board.setOverlaysMuted(muted);
   }
 
   /** Which candidate, if any, the pointer ray currently reaches. */

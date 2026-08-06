@@ -216,6 +216,8 @@ export class BoardView {
   readonly tiles: THREE.Mesh[] = [];
 
   private slots = new Map<SquareId, HighlightSlot>();
+  /** Held down while a modal panel owns the screen (the promotion picker). */
+  private overlaysMuted = false;
   private shrouds = new Map<SquareId, ShroudSlot>();
   private markerMaps: Record<HighlightKind, THREE.Texture | null> = {
     select: null,
@@ -843,6 +845,21 @@ export class BoardView {
     slot.beam.visible = visible && BEAM_OPACITY[kind] > 0;
   }
 
+  /**
+   * Silences the overlays that deliberately ignore the depth buffer — the x-ray
+   * reticles. They are drawn through everything in the way, a modal panel
+   * included, so they have to stand down while one is up.
+   */
+  setOverlaysMuted(muted: boolean): void {
+    if (this.overlaysMuted === muted) return;
+    this.overlaysMuted = muted;
+    if (!muted) return;
+    for (const slot of this.slots.values()) {
+      slot.xray.visible = false;
+      slot.xrayMaterial.opacity = 0;
+    }
+  }
+
   setHover(square: SquareId | null): void {
     const material = this.hoverRing.material as THREE.MeshBasicMaterial;
     if (!square) {
@@ -871,7 +888,7 @@ export class BoardView {
       }
 
       const hasMarker = this.markerMaps[kind] !== null;
-      const hasXray = hasMarker && XRAY_OPACITY[kind] > 0;
+      const hasXray = hasMarker && XRAY_OPACITY[kind] > 0 && !this.overlaysMuted;
       const hasBeam = BEAM_OPACITY[kind] > 0;
       slot.glow.visible = true;
       slot.marker.visible = hasMarker;
