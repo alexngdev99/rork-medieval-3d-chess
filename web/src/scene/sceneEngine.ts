@@ -970,6 +970,8 @@ export class SceneEngine {
   private premoving = false;
   /** The two squares of the queued move, held so they can be re-lit. */
   private premoveMarks: { from: SquareId; to: SquareId } | null = null;
+  /** Pointer is resting on the queued move's dismiss coin. */
+  private premoveCancelHovered = false;
 
   private lastFrameTime = 0;
   private elapsed = 0;
@@ -4424,6 +4426,28 @@ export class SceneEngine {
       return;
     }
 
+    // The dismiss coin sits in front of everything, so it answers the pointer
+    // before the board does — otherwise the square behind it would steal the
+    // hover and the player would be aiming at the coin while the stone lit up.
+    if (this.premoveCancelUnderPointer()) {
+      if (!this.premoveCancelHovered) {
+        this.premoveCancelHovered = true;
+        this.board.setPremoveCancelHot(true);
+        audio.blip("hover");
+      }
+      if (this.hoveredPiece) {
+        this.hoveredPiece.setHovered(false);
+        this.hoveredPiece = null;
+      }
+      this.board.setHover(null);
+      this.canvas.style.cursor = "pointer";
+      return;
+    }
+    if (this.premoveCancelHovered) {
+      this.premoveCancelHovered = false;
+      this.board.setPremoveCancelHot(false);
+    }
+
     const { square: hoveredSquare, piece } = this.pickTarget();
     const snapshot = this.controller.getSnapshot();
     // Two ways a figure is touchable: it is your turn and the figure is yours,
@@ -4481,6 +4505,16 @@ export class SceneEngine {
     if (Math.hypot(event.clientX - down.x, event.clientY - down.y) > this.limits.tapSlop) return;
 
     this.updatePointer(event);
+
+    // Tapping the coin takes the queued move back, whatever else is under it.
+    if (this.premoveCancelUnderPointer()) {
+      this.premoveCancelHovered = false;
+      this.board.setPremoveCancelHot(false);
+      audio.blip("deny");
+      this.controller.clearPremove();
+      return;
+    }
+
     const { square, piece } = this.pickTarget();
 
     if (!square) {
@@ -4618,9 +4652,20 @@ export class SceneEngine {
     }
   }
 
+  /** Is the pointer on the dismiss coin of a queued move? */
+  private premoveCancelUnderPointer(): boolean {
+    const handle = this.board.premoveCancelHandle();
+    if (!handle) return false;
+    return this.raycaster.intersectObject(handle, false).length > 0;
+  }
+
   /** The controller's queue changed: repaint the two marks. */
   private onPremoveChanged(premove: { from: SquareId; to: SquareId } | null): void {
     this.premoveMarks = premove ? { from: premove.from, to: premove.to } : null;
+    if (!premove) {
+      this.premoveCancelHovered = false;
+      this.board.setPremoveCancelHot(false);
+    }
     this.clearSelection();
   }
 
@@ -4635,6 +4680,9 @@ export class SceneEngine {
    */
   private applyPremoveHighlight(): void {
     this.board.setPremoveLink(this.premoveMarks);
+    // The dismiss coin only makes sense while the move is still waiting: once
+    // the turn is back the queue is empty and there is nothing to take back.
+    this.board.setPremoveCancel(this.premoveMarks ? this.premoveMarks.to : null);
     if (!this.premoveMarks) return;
     this.board.setHighlight(this.premoveMarks.from, "queued", false);
     this.board.setHighlight(this.premoveMarks.to, "queuedTarget", true);
@@ -4647,6 +4695,8 @@ export class SceneEngine {
    */
   private async flashPremoveLost(from: SquareId, to: SquareId): Promise<void> {
     this.premoveMarks = null;
+    this.board.setPremoveCancel(null);
+    this.premoveCancelHovered = false;
     audio.blip("deny");
     this.board.setHighlight(from, "capture", true);
     this.board.setHighlight(to, "capture", true);

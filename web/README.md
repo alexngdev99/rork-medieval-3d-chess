@@ -170,8 +170,33 @@ and stops *inside* the marks rather than crossing them, breathing between `0.16`
 The figure itself never moves — it is marked, not relocated — and the placing tap is the same wooden
 tick as a selection at half the volume, with no lift.
 
-When the reply kills the move, both squares beat red once for 0.55 s with the deny blip and vanish.
-No dialog, nothing to dismiss: the player just watched the move that killed it.
+**Taking it back had no button.** Four gestures already cancelled a queued move — tap the figure,
+tap the destination, `Esc`, or simply queue another — and not one of them was written anywhere the
+player could see it. On a phone two of the four (a key, and a hover-free "tap the mark you can
+barely tell apart") are worth nothing. So the queued move now carries its own dismiss control:
+`premoveCancelTexture()`, a small struck-cross coin hanging `0.62` above the destination tile.
+
+- It is a **sprite**, so it faces the player from any orbit angle, and it is drawn with
+  `depthTest: false` at `renderOrder = 12`. A cancel button hidden behind the figure standing in
+  front of it is a cancel button that does not exist.
+- The disc covers only ~68% of its texture; the transparent margin is free hit area, so the coin
+  stays small on screen and still takes a thumb.
+- It **bobs** (±0.03 at 2.2 rad/s) and pops in on `easeOutBack`. Everything else in the premove
+  language lies flat on the stone — hanging in the air is what says *control*, not *marker*.
+- Cold it wears the queued pewter `0xd7e2f6`; under the pointer it warms to ember `0xff8f7a`, grows
+  16% and brightens, because this is the button that destroys something.
+- The pointer is tested against the coin **before** the board in both `onPointerMove` and
+  `onPointerUp` — it is drawn in front of everything, so the square behind it must not steal the
+  hover or the tap.
+- It follows the same modal rule as the x-ray reticles: `setOverlaysMuted()` takes it off screen
+  while a panel is up, since it too punches through them.
+
+It appears and disappears with the queue itself (`setPremoveCancel()` from `applyPremoveHighlight()`),
+so it is never on screen when there is nothing to take back.
+
+When the reply kills the move, both squares beat red once for 0.55 s with the deny blip and vanish,
+and the coin goes with them. No dialog, nothing to dismiss: the player just watched the move that
+killed it.
 
 Off switch in settings (*Queue a move while the machine thinks*), on by default, remembered in
 `kg.premove`. Rules are covered by `src/core/premove.test.ts`.

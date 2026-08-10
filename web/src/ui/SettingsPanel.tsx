@@ -170,8 +170,8 @@ export function SettingsPanel({
         />
         <Toggle
           label="Queue a move while the machine thinks"
-          note={`Against the computer — aim a figure during the wait and it plays the instant the turn returns. ${
-            hasKeyboard ? "Esc, or a tap off the board, takes it back" : "A tap off the board takes it back"
+          note={`Against the computer — aim a figure during the wait and it plays the instant the turn returns. Tap the X over the square to take it back${
+            hasKeyboard ? ", or press Esc" : ""
           }`}
           value={settings.premoves}
           onChange={(value) => onChange({ ...settings, premoves: value })}

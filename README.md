@@ -214,8 +214,9 @@ by the reply. The choice is remembered between visits.
   pawn standing in it, a pawn gets both diagonals whether or not there is anything to take, and the
   king is offered its two castling squares. The move is aimed at a position that does not exist
   yet, and the piece in the way may be the very thing that moves.
-- **One move at a time.** Aiming a second one replaces the first. Take it back with `Esc`, a tap off
-  the board, or a tap on the queued figure itself.
+- **One move at a time.** Aiming a second one replaces the first. Take it back with the little **X**
+  hanging over the destination square, `Esc`, a tap off the board, or a tap on the queued figure
+  itself.
 - **The crown is chosen up front.** A queued pawn push to the last rank opens the usual picker
   *there and then*, so nothing interrupts the move when it runs.
 - **If the reply killed it, it is dropped** — never played blind. Both squares beat red once and
@@ -234,6 +235,14 @@ standing on it to explain itself — while the **destination** is drawn as a bri
 the only mark on the board that does not turn, so it stays square to the ground it is claiming, and
 a thin thread breathes between the two so the whole move reads in one glance. The figure never moves
 until the move does.
+
+**And there is a button to take it back.** A small dark coin with a struck cross floats just above
+the square you aimed at, bobbing gently so it reads as a control rather than another mark on the
+stone. Tap it and the queued move is gone. It always faces you as the camera swings, it is drawn in
+front of everything — including the figure standing in the way — and it warms to ember under the
+pointer, because it is the button that destroys something. It only exists while a move is waiting.
+Cancelling was always possible with `Esc` or a stray tap; none of that was visible, and on a phone
+half of it was not even reachable.
 
 Off switch in settings, on by default. The rules and the full measurements: [Queuing a move while
 the machine thinks](web/README.md#queuing-a-move-while-the-machine-thinks).

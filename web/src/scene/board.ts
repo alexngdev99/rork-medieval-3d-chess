@@ -10,6 +10,7 @@ import {
   columnTexture,
   marbleTexture,
   moveMarkerTexture,
+  premoveCancelTexture,
   premoveMarkerTexture,
   premoveTargetTexture,
   promoteMarkerTexture,
@@ -152,6 +153,15 @@ const MARKER_SPIN: Record<HighlightKind, number> = {
 
 const POP_DURATION = 0.26;
 
+/** How high above the destination tile the dismiss coin floats. */
+const CANCEL_LIFT = 0.62;
+/** World size of the coin sprite, transparent hit margin included. */
+const CANCEL_SIZE = 0.62;
+/** Resting tint of the dismiss coin: the pewter of the queued move. */
+const CANCEL_COLD = new THREE.Color(0xd7e2f6);
+/** Under the pointer it warms to an ember — this is the button that destroys. */
+const CANCEL_HOT = new THREE.Color(0xff8f7a);
+
 /** Overshooting ease so squares snap into place with a little punch. */
 function easeOutBack(t: number): number {
   const c = 1.9;
@@ -268,6 +278,13 @@ export class BoardView {
   /** The thread drawn between the two squares of a queued move. */
   private premoveLink!: THREE.Mesh;
   private premoveLinkMaterial!: THREE.MeshBasicMaterial;
+  /** The dismiss coin hanging over a queued move's destination. */
+  private premoveCancel!: THREE.Sprite;
+  private premoveCancelMaterial!: THREE.SpriteMaterial;
+  private premoveCancelSquare: SquareId | null = null;
+  private premoveCancelHot = false;
+  private premoveCancelHeat = 0;
+  private premoveCancelAge = 0;
   /** Materials the arena theme repaints (tile contrast, base stone, trim). */
   private lightTileMaterial: THREE.MeshPhysicalMaterial;
   private darkTileMaterial: THREE.MeshPhysicalMaterial;
@@ -356,6 +373,7 @@ export class BoardView {
     this.group.add(this.hoverRing);
 
     this.buildPremoveLink();
+    this.buildPremoveCancel();
   }
 
   /**
@@ -382,6 +400,61 @@ export class BoardView {
     this.premoveLink.visible = false;
     this.premoveLink.renderOrder = 4;
     this.group.add(this.premoveLink);
+  }
+
+  /**
+   * The dismiss coin. It is a sprite so it always faces the player from any
+   * camera angle, and it ignores the depth buffer: a cancel button hidden
+   * behind the figure standing in front of it would be a cancel button that
+   * does not exist.
+   */
+  private buildPremoveCancel(): void {
+    const material = this.track(
+      new THREE.SpriteMaterial({
+        map: this.track(premoveCancelTexture()),
+        color: CANCEL_COLD.clone(),
+        transparent: true,
+        opacity: 0,
+        depthTest: false,
+        depthWrite: false,
+      }),
+    );
+    this.premoveCancelMaterial = material;
+    const sprite = new THREE.Sprite(material);
+    sprite.visible = false;
+    sprite.renderOrder = 12;
+    sprite.scale.setScalar(CANCEL_SIZE);
+    this.premoveCancel = sprite;
+    this.group.add(sprite);
+  }
+
+  /** Hangs the dismiss coin over a square, or takes it away. */
+  setPremoveCancel(square: SquareId | null): void {
+    if (square === this.premoveCancelSquare) return;
+    this.premoveCancelSquare = square;
+    this.premoveCancelHot = false;
+    this.premoveCancelHeat = 0;
+    this.premoveCancelMaterial.color.copy(CANCEL_COLD);
+    if (!square) {
+      this.premoveCancel.visible = false;
+      this.premoveCancelMaterial.opacity = 0;
+      return;
+    }
+    const centre = squareToWorld(square, BOARD_TOP);
+    this.premoveCancel.position.set(centre.x, BOARD_TOP + CANCEL_LIFT, centre.z);
+    this.premoveCancelAge = 0;
+    this.premoveCancelMaterial.opacity = 0;
+    this.premoveCancel.visible = !this.overlaysMuted;
+  }
+
+  /** Lights the coin up while the pointer is on it. */
+  setPremoveCancelHot(hot: boolean): void {
+    this.premoveCancelHot = hot;
+  }
+
+  /** The coin as a ray target, or `null` when there is nothing to dismiss. */
+  premoveCancelHandle(): THREE.Object3D | null {
+    return this.premoveCancel.visible && this.premoveCancelSquare ? this.premoveCancel : null;
   }
 
   /** Lays the thread between a queued move's squares, or takes it away. */
@@ -891,6 +964,7 @@ export class BoardView {
     if (!kinds) {
       this.setShroud(null);
       this.setPremoveLink(null);
+      this.setPremoveCancel(null);
     }
     for (const slot of this.slots.values()) {
       if (kinds && slot.kind && !kinds.includes(slot.kind)) continue;
@@ -942,6 +1016,26 @@ export class BoardView {
   }
 
   /**
+   * Pops the dismiss coin in, bobs it, and warms it under the pointer. The bob
+   * is what stops it reading as part of the stone: it hangs in the air over the
+   * square, so it is plainly a control rather than another marker.
+   */
+  private updatePremoveCancel(delta: number): void {
+    if (!this.premoveCancel.visible || !this.premoveCancelSquare) return;
+    this.premoveCancelAge = Math.min(this.premoveCancelAge + delta, POP_DURATION);
+    const pop = easeOutBack(this.premoveCancelAge / POP_DURATION);
+    const target = this.premoveCancelHot ? 1 : 0;
+    this.premoveCancelHeat += (target - this.premoveCancelHeat) * Math.min(1, delta * 12);
+    const heat = this.premoveCancelHeat;
+    const bob = Math.sin(this.elapsed * 2.2) * 0.03;
+    const centre = squareToWorld(this.premoveCancelSquare, BOARD_TOP);
+    this.premoveCancel.position.set(centre.x, BOARD_TOP + CANCEL_LIFT + bob, centre.z);
+    this.premoveCancel.scale.setScalar(CANCEL_SIZE * (0.4 + pop * 0.6) * (1 + heat * 0.16));
+    this.premoveCancelMaterial.opacity = (0.78 + heat * 0.22) * Math.min(1, pop);
+    this.premoveCancelMaterial.color.copy(CANCEL_COLD).lerp(CANCEL_HOT, heat);
+  }
+
+  /**
    * Silences the overlays that deliberately ignore the depth buffer — the x-ray
    * reticles. They are drawn through everything in the way, a modal panel
    * included, so they have to stand down while one is up.
@@ -949,6 +1043,7 @@ export class BoardView {
   setOverlaysMuted(muted: boolean): void {
     if (this.overlaysMuted === muted) return;
     this.overlaysMuted = muted;
+    this.premoveCancel.visible = !muted && this.premoveCancelSquare !== null;
     if (!muted) return;
     for (const slot of this.slots.values()) {
       slot.xray.visible = false;
@@ -974,6 +1069,7 @@ export class BoardView {
       const wave = (Math.sin(this.elapsed * 2.2) + 1) * 0.5;
       this.premoveLinkMaterial.opacity = 0.16 + wave * 0.16;
     }
+    this.updatePremoveCancel(delta);
     for (const slot of this.slots.values()) {
       const kind = slot.kind;
       if (!kind) continue;

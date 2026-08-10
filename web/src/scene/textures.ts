@@ -548,6 +548,58 @@ export function premoveTargetTexture(): THREE.CanvasTexture {
   return texture;
 }
 
+/**
+ * The little dismiss disc that hangs over a queued move.
+ *
+ * Taking a premove back was already possible four ways — tap the figure, tap
+ * the destination, Esc, or queue something else — but every one of them is a
+ * thing you have to *know*. Nothing on the board said so. This is the one
+ * affordance that does: a struck cross on a dark coin, which is the same
+ * gesture the player already uses to close a panel.
+ *
+ * It is drawn as a coin rather than a bare glyph because it hangs over stone,
+ * figures and torchlight in turn, and a bare stroke would vanish against half
+ * of them.
+ */
+export function premoveCancelTexture(): THREE.CanvasTexture {
+  const size = 128;
+  const { canvas, ctx } = createCanvas(size);
+  const centre = size / 2;
+  // The disc is deliberately smaller than the canvas: the transparent margin is
+  // free hit area, so the coin can stay small on screen and still be tappable
+  // with a thumb.
+  const radius = size * 0.34;
+
+  const body = ctx.createRadialGradient(centre, centre - radius * 0.3, 0, centre, centre, radius);
+  body.addColorStop(0, "rgba(46,52,66,0.96)");
+  body.addColorStop(1, "rgba(18,21,28,0.96)");
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.arc(centre, centre, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(255,255,255,0.85)";
+  ctx.lineWidth = size * 0.022;
+  ctx.beginPath();
+  ctx.arc(centre, centre, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(255,255,255,0.96)";
+  ctx.lineWidth = size * 0.055;
+  ctx.lineCap = "round";
+  const arm = radius * 0.44;
+  ctx.beginPath();
+  ctx.moveTo(centre - arm, centre - arm);
+  ctx.lineTo(centre + arm, centre + arm);
+  ctx.moveTo(centre + arm, centre - arm);
+  ctx.lineTo(centre - arm, centre + arm);
+  ctx.stroke();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 /** Gold frame drawn under the piece the player has picked up. */
 export function selectMarkerTexture(): THREE.CanvasTexture {
   const size = 256;
