@@ -277,6 +277,24 @@ lands on is bare stone, so the tick is panned by where the *plan* puts the piece
 projected piece's kind; the selection glow goes on the square alone, because there is no wood there
 to light.
 
+**But that tick could not say the one thing that mattered.** Picking a figure up for a premove and
+actually queueing the move were the *same* dry knock, at `0.5` and `0.42` — a 1.6 dB difference, in
+the middle of an engine reply that is already walking, clashing and shouting. The ear could not tell
+"heard you" from "it is in the queue", and nothing at all said *which* link had just landed, which
+is exactly the thing a player queueing three deep without looking away needs to know.
+
+So the confirmation gets a voice of its own: `audio.premoveChime()`, a small struck bell under the
+knock rather than instead of it — one sine with a quiet octave over it (`0.28`), **12 ms of attack**
+so it swells instead of clicking, and a half-second tail. Peak level is `0.05`, a twentieth of full
+scale: it has to sit *under* the machine's move, which is the thing actually happening.
+
+It walks up a five-note **major pentatonic** (C5 D5 F5 G5 A5) with the link index. A ladder with no
+semitone in it means a chain built quickly is a phrase rather than a pile-up — three taps in two
+seconds resolve instead of clashing — and the rising pitch tells the player how deep the plan is
+without taking their eyes off the fight. The note is panned by where the plan **lands**, not where
+the wood is: the knock belongs to the figure, the note belongs to the mark that just appeared on the
+far square.
+
 A chain lost to a **check** is the one exception to the red beat: the king's square is already
 beating red under the check banner, and two reds at once is two messages for one event. It leaves
 with the deny sound and the tremor, and the board keeps the check to itself.

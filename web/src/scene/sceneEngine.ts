@@ -4669,6 +4669,15 @@ export class SceneEngine {
       volume: 0.42,
       lift: false,
     });
+    // The knock alone said "a figure was touched", which is also what picking
+    // one up says. The note is what says *it is in the queue* — and it steps up
+    // the ladder with the link, so a chain is heard being built. It is panned
+    // where the plan *lands*, not where the wood is: the mark just appeared
+    // there.
+    audio.premoveChime({
+      pan: this.stereoPan(squareToWorld(to)),
+      index: this.controller.getPremoves().length - 1,
+    });
   }
 
   /** Is the pointer on the dismiss coin of a queued move? */

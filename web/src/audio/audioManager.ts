@@ -85,6 +85,16 @@ export interface ConquestOptions {
   weight?: number;
 }
 
+/** The soft confirmation note of a move joining the premove chain. */
+export interface PremoveChimeOptions {
+  /** -1 hard left … 1 hard right — where the square the plan lands on sits. */
+  pan?: number;
+  /** Which link of the chain just landed, 0-based. Steps the note up the ladder. */
+  index?: number;
+  /** Relative loudness. */
+  volume?: number;
+}
+
 /** A wooden piece being lifted from or set down on the board. */
 export interface WoodTapOptions {
   /** -1 hard left … 1 hard right — where the square is on screen. */
@@ -650,6 +660,66 @@ export class AudioManager {
     source.stop(when + played + 0.02);
 
     this.duckBeds(0.55, played + 0.25);
+  }
+
+  /**
+   * The note a queued move leaves behind: a small struck bell, well under the
+   * wood knock it rides on.
+   *
+   * The knock alone could not carry this. Picking a figure up for a premove and
+   * actually queueing the move were the *same* dry tap at 0.5 and 0.42 — close
+   * enough that the ear could not tell "heard you" from "it is in the queue",
+   * and nothing at all said *which* link had just landed. So the confirmation
+   * gets a voice of its own: one soft sine with a quiet octave over it, 12 ms of
+   * attack so it swells rather than clicks, and a half-second tail.
+   *
+   * It walks up a five-note major pentatonic — the ladder has no semitone in it,
+   * so a chain built quickly is a phrase rather than a pile-up, and the pitch
+   * tells the player how deep the plan is without looking away from the fight.
+   * Peak level is a twentieth of full scale: it must sit *under* the machine's
+   * move, which is the thing actually happening on the board.
+   */
+  premoveChime(options: PremoveChimeOptions = {}): void {
+    if (!this.ctx || !this.master || this.muted) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const ladder = [523.25, 587.33, 698.46, 783.99, 880.0];
+    const step = Math.max(0, Math.min(ladder.length - 1, Math.round(options.index ?? 0)));
+    const root = ladder[step];
+    const level = 0.05 * (options.volume ?? 1);
+
+    const bus = ctx.createGain();
+    bus.gain.value = level;
+    const tone = ctx.createBiquadFilter();
+    tone.type = "lowpass";
+    tone.frequency.value = 3200;
+    bus.connect(tone);
+    if (typeof ctx.createStereoPanner === "function") {
+      const panner = ctx.createStereoPanner();
+      panner.pan.value = Math.max(-1, Math.min(1, options.pan ?? 0)) * 0.5;
+      tone.connect(panner);
+      panner.connect(this.master);
+    } else {
+      tone.connect(this.master);
+    }
+
+    const partials: { ratio: number; gain: number; decay: number }[] = [
+      { ratio: 1, gain: 1, decay: 0.52 },
+      { ratio: 2, gain: 0.28, decay: 0.3 },
+    ];
+    for (const partial of partials) {
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(root * partial.ratio, now);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(partial.gain, now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + partial.decay);
+      osc.connect(gain);
+      gain.connect(bus);
+      osc.start(now);
+      osc.stop(now + partial.decay + 0.05);
+    }
   }
 
   /**

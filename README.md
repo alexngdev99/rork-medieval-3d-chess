@@ -260,6 +260,15 @@ and nothing else is allowed to look like it. The move that runs next is the brig
 dims away behind it. A single queued move gets no number at all — a lone "1" answers a question
 nobody asked.
 
+**And a queued move now has a sound of its own.** Picking a figure up for a plan and actually
+queueing the move were the same dry wooden knock at almost the same volume, so in the middle of an
+engine reply that is already marching and clashing, the ear could not tell *heard you* from *it is
+in the queue* — and nothing said which link had just landed. So placing a move leaves a small bell
+under the knock: very quiet, swelling rather than clicking, gone in half a second. It climbs a
+five-note ladder with the chain, so stacking three moves plays a little rising phrase instead of
+three identical taps, and you can hear how deep your plan is without looking away from the fight.
+The note comes from the square the plan **lands** on, not the one the wood is standing on.
+
 **A check does not wait its turn.** A plan is drawn for a board where nobody is shouting at your
 king, so a checking reply is not one more way for a queued move to fail — it is the end of the
 plan. It used to be treated as just another failure: the chain stayed lit through the whole checking
