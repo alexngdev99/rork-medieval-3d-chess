@@ -1163,7 +1163,9 @@ export class SceneEngine {
     this.controller.on("illegal", ({ from }) => this.rejectMove(from));
     this.controller.on("gameover", () => void this.playEndCinematic());
     this.controller.on("premove", (premoves) => this.onPremoveChanged(premoves));
-    this.controller.on("premovefailed", ({ from, to, dropped }) => void this.flashPremoveLost(from, to, dropped));
+    this.controller.on("premovefailed", ({ from, to, dropped, reason }) =>
+      void this.flashPremoveLost(from, to, dropped, reason),
+    );
     this.handleResize();
   }
 
@@ -4719,8 +4721,18 @@ export class SceneEngine {
    * The reply left the queued move unplayable. One short red beat on both
    * squares and it is gone — the player just watched the move that killed it,
    * so there is nothing to explain and nothing to dismiss.
+   *
+   * A check is the exception. The king's own square is already beating red and
+   * the banner is already up; two reds at once is two messages for one event,
+   * and the louder one is not the queue. So a chain lost to a check leaves with
+   * the sound and the tremor only, and the board keeps the check to itself.
    */
-  private async flashPremoveLost(from: SquareId, to: SquareId, dropped: number): Promise<void> {
+  private async flashPremoveLost(
+    from: SquareId,
+    to: SquareId,
+    dropped: number,
+    reason: "illegal" | "check",
+  ): Promise<void> {
     this.premoveChain = [];
     this.board.setPremoveCancel(null);
     this.board.setPremoveOrders([]);
@@ -4728,6 +4740,10 @@ export class SceneEngine {
     if (dropped > 1) this.shake.tremor(0.09, 0.4);
     this.premoveCancelHovered = false;
     audio.blip("deny");
+    if (reason === "check") {
+      this.restoreBaseHighlights();
+      return;
+    }
     this.board.setHighlight(from, "capture", true);
     this.board.setHighlight(to, "capture", true);
     await wait(0.55);

@@ -233,6 +233,9 @@ by the reply. The choice is remembered between visits.
   *there and then*, so nothing interrupts the move when it runs.
 - **If the reply killed it, it is dropped** — never played blind. Both squares beat red once and
   clear; there is no dialog, because you just watched the move that killed it.
+- **A check ends the plan on the spot.** The moment the computer's move puts your king under
+  attack, the whole queue goes — with the move, not seconds later — and while you are in check only
+  the squares that actually answer it can be aimed at.
 - **It survives three times in four.** Of queued moves that were legal when placed, **73.9%** were
   still legal after the computer replied; the rest died to a check (18.0%) or a blocked path
   (8.1%). Queue at random and it drops to ~33–40%.
@@ -256,6 +259,23 @@ bare numeral with a soft dark halo, never a disc: the dismiss coin is the only t
 and nothing else is allowed to look like it. The move that runs next is the brightest, and the tail
 dims away behind it. A single queued move gets no number at all — a lone "1" answers a question
 nobody asked.
+
+**A check does not wait its turn.** A plan is drawn for a board where nobody is shouting at your
+king, so a checking reply is not one more way for a queued move to fail — it is the end of the
+plan. It used to be treated as just another failure: the chain stayed lit through the whole checking
+move and only died when the board came back to you. Measured over 949 waits against the middle
+engine, 190 of them ended in check, and after one of those the queued move was still playable
+**7.9%** of the time — against 79.2% after a quiet reply — with the whole chain surviving 3.2%. And
+fourteen of the fifteen survivors were the king happening to step somewhere legal, which is an
+accident rather than a plan. So the queue now dies **with** the move that killed it: the marks clear
+as the check lands, with the sound and a small tremor, and no second red flash — the king's own
+square is already answering that.
+
+The squares on offer change too. Because the window stays open while the checking move plays out,
+you could aim your next plan at squares nobody would ever be allowed to use: of the 10470 squares
+the usual generous geometry lit in those check positions, only **5.2%** could actually be played.
+While your king is under attack the first move you aim is cut down to the moves that answer the
+check — the rest of the chain, aimed at boards nobody can see yet, keeps the full geometry.
 
 **And there is a button to take a move back.** A small dark coin with a struck cross floats just
 above the last square of the chain, bobbing gently so it reads as a control rather than another mark

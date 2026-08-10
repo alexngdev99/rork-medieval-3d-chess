@@ -125,7 +125,7 @@ describe("premove queue", () => {
 
   it("drops a queued move the reply made illegal, and says so", async () => {
     const controller = startAiGame(["e5"]);
-    const failures: { from: string; to: string; dropped: number }[] = [];
+    const failures: { from: string; to: string; dropped: number; reason: string }[] = [];
     controller.on("premovefailed", (event) => failures.push(event));
 
     await controller.tryMove("e2", "e4");
@@ -133,7 +133,7 @@ describe("premove queue", () => {
     expect(controller.setPremove("e4", "e5")).toBe(true);
 
     await waitFor(() => failures.length > 0);
-    expect(failures[0]).toEqual({ from: "e4", to: "e5", dropped: 1 });
+    expect(failures[0]).toEqual({ from: "e4", to: "e5", dropped: 1, reason: "illegal" });
     expect(controller.getSnapshot().sanList).toEqual(["e4", "e5"]);
     expect(controller.getSnapshot().premoves).toEqual([]);
     expect(controller.isHumanTurn()).toBe(true);
@@ -142,7 +142,7 @@ describe("premove queue", () => {
 
   it("drops a queued move whose piece was captured", async () => {
     const controller = startAiGame(["d5", "Qxd5"]);
-    const failures: { from: string; to: string; dropped: number }[] = [];
+    const failures: { from: string; to: string; dropped: number; reason: string }[] = [];
     controller.on("premovefailed", (event) => failures.push(event));
 
     await controller.tryMove("e2", "e4");
@@ -151,7 +151,7 @@ describe("premove queue", () => {
     expect(controller.setPremove("d5", "d6")).toBe(true);
 
     await waitFor(() => failures.length > 0);
-    expect(failures[0]).toEqual({ from: "d5", to: "d6", dropped: 1 });
+    expect(failures[0]).toEqual({ from: "d5", to: "d6", dropped: 1, reason: "illegal" });
     expect(controller.getSnapshot().sanList).toEqual(["e4", "d5", "exd5", "Qxd5"]);
     controller.dispose();
   });
@@ -199,7 +199,7 @@ describe("premove queue", () => {
 
   it("drops the whole chain when its head cannot be played", async () => {
     const controller = startAiGame(["e5"]);
-    const failures: { from: string; to: string; dropped: number }[] = [];
+    const failures: { from: string; to: string; dropped: number; reason: string }[] = [];
     controller.on("premovefailed", (event) => failures.push(event));
 
     await controller.tryMove("e2", "e4");
@@ -208,9 +208,44 @@ describe("premove queue", () => {
 
     await waitFor(() => failures.length > 0);
     // Everything behind the head was aimed at a board that never happened.
-    expect(failures[0]).toEqual({ from: "e4", to: "e5", dropped: 2 });
+    expect(failures[0]).toEqual({ from: "e4", to: "e5", dropped: 2, reason: "illegal" });
     expect(controller.getSnapshot().premoves).toEqual([]);
     expect(controller.getSnapshot().sanList).toEqual(["e4", "e5"]);
+    controller.dispose();
+  });
+
+  it("drops the whole chain the moment the reply gives check", async () => {
+    // 1. e4 e5 2. f4 Qh4+ — the queue is aimed at a board where the king was
+    // not being shouted at, and only 7.9% of heads survive a check anyway.
+    const controller = startAiGame(["e5", "Qh4+"]);
+    const failures: { from: string; to: string; dropped: number; reason: string }[] = [];
+    controller.on("premovefailed", (event) => failures.push(event));
+
+    await controller.tryMove("e2", "e4");
+    await waitFor(() => controller.isHumanTurn());
+    await controller.tryMove("f2", "f4");
+    expect(controller.setPremove("g1", "f3")).toBe(true);
+    expect(controller.setPremove("f3", "g5")).toBe(true);
+
+    await waitFor(() => failures.length > 0);
+    expect(failures[0]).toEqual({ from: "g1", to: "f3", dropped: 2, reason: "check" });
+    expect(controller.getSnapshot().premoves).toEqual([]);
+    expect(controller.getSnapshot().inCheck).toBe(true);
+    controller.dispose();
+  });
+
+  it("offers only check answers while the king is under attack", async () => {
+    const controller = startAiGame(["e5", "Qh4+"]);
+    await controller.tryMove("e2", "e4");
+    await waitFor(() => controller.isHumanTurn());
+    await controller.tryMove("f2", "f4");
+    await waitFor(() => controller.getSnapshot().inCheck);
+
+    // Geometry alone would light g3, f3, h3, e2 and more; only two moves answer
+    // the queen on h4, so only those two squares may be aimed at.
+    expect(controller.premoveTargets("g2")).toEqual(["g3"]);
+    expect(controller.premoveTargets("e1")).toEqual(["e2"]);
+    expect(controller.premoveTargets("g1")).toEqual([]);
     controller.dispose();
   });
 

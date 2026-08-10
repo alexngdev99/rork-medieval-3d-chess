@@ -147,6 +147,39 @@ At three deep the tail still pays for itself; past it, links are queued far more
 which is why five is offered but not the default. Deaths split 75 *piece gone* / 73 *king in check*
 / 25 *path blocked*.
 
+**A check is not one more way to die — it is the end of the plan.** *King in check* was already the
+second-largest killer in the table above, and the chain was still being held on screen through the
+whole checking move, then quietly failing when the board was handed back. So the check case was
+measured on its own: 949 thinking windows with a chain standing against the medium engine, 190 of
+them ended by a checking reply.
+
+| After the reply | Head still playable | Whole chain still alive |
+| --- | --- | --- |
+| Quiet reply (759) | 79.2% | — |
+| **Checking reply (190)** | **7.9%** (15) | **3.2%** (6) |
+
+And the fifteen survivors are not the argument they look like: **fourteen of them were the king
+happening to step somewhere legal**, one was a block, none was a capture of the checking piece. A
+queued king step that survives a check is an accident, not a plan — it was aimed at a board where
+nobody was shouting at the king, and it is being cashed in the sharpest position of the game.
+
+So `commit()` calls `dropPremovesOnCheck()` **before the animator runs**, the instant the checking
+move lands, rather than leaving it to `consumePremove()` seconds later. The marks die with the move
+that killed them; they never sit lit over a plan the check has already ended.
+
+**The other half is the squares that stay on offer.** The queueing window is open during the check
+cinematic too (`canPremove()` is `!isHumanTurn()`, and `busy` is still held), so a player can queue
+*into* a position where their king is under attack — and the geometry that makes premoves generous
+turns into a liar there. Over those same 190 check positions, `premoveTargets()` lit **10470**
+squares of which only **546 were actually playable: 5.2%**. Nineteen lit squares in twenty were a
+move the player would never be allowed to make.
+
+Under check the board stops being hypothetical — every legal answer is a move that can be played
+*right now* — so `premoveTargets()` filters the **first** link down to the real legal moves whenever
+`inPlayerCheck()`. Links deeper in the chain are still aimed at a board nobody can see yet and keep
+the raw geometry. `setPremove()` reads the same list, so an aim that does not answer the check is
+refused with the deny blip rather than queued and dropped later.
+
 **The rules, all of them in `GameController`:**
 
 - The window is `canPremove()` — mode `ai`, game running, and `!isHumanTurn()`. That deliberately
@@ -171,6 +204,11 @@ which is why five is offered but not the default. Deaths split 75 *piece gone* /
   than letting the tail run.
 - Taking back: `popPremove()` drops the last link, `truncatePremoves(n)` keeps the first `n` (used
   by tapping a link's own starting square), `clearPremove()` drops the lot.
+- A reply that **gives check** drops the whole chain on the spot, from `commit()` before the move is
+  even animated. `premovefailed` carries `reason: "check"` to separate it from `"illegal"`, which is
+  found later at the hand-back.
+- While the player is in check, `premoveTargets()` returns only the moves that answer it, so the
+  next chain cannot be built on squares nobody is allowed to use.
 - The queue is cleared by a new game, `stop()`, `undo()`, the end of the battle, and by switching
   the feature off.
 
@@ -238,6 +276,10 @@ wooden tick as a selection at half the volume, with no lift. Deeper in the chain
 lands on is bare stone, so the tick is panned by where the *plan* puts the piece and weighted by the
 projected piece's kind; the selection glow goes on the square alone, because there is no wood there
 to light.
+
+A chain lost to a **check** is the one exception to the red beat: the king's square is already
+beating red under the check banner, and two reds at once is two messages for one event. It leaves
+with the deny sound and the tremor, and the board keeps the check to itself.
 
 **Taking it back had no button.** Four gestures already cancelled a queued move — tap the figure,
 tap the destination, `Esc`, or simply queue another — and not one of them was written anywhere the
