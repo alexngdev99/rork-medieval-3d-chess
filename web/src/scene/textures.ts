@@ -600,6 +600,48 @@ export function premoveCancelTexture(): THREE.CanvasTexture {
   return texture;
 }
 
+/**
+ * The ordinal that rides over each square of a queued chain.
+ *
+ * A chain of three queued moves draws three rings and three threads, and from
+ * a low camera the threads cross: the marks say *where* the plan goes but not
+ * *in which order*. This is the answer, and it is deliberately **not** a coin —
+ * the dismiss disc is the only pressable thing in the premove language, so a
+ * second filled disc would read as a second button. A bare numeral with a soft
+ * dark halo behind it is a label: legible over pale marble, dark basalt and a
+ * figure's shoulder alike, without ever looking like something to tap.
+ */
+export function premoveOrderTexture(index: number): THREE.CanvasTexture {
+  const size = 128;
+  const { canvas, ctx } = createCanvas(size);
+  const centre = size / 2;
+
+  // The halo is the whole reason this is readable on stone; it is a gradient
+  // rather than a disc so it has no edge to be mistaken for a coin's rim.
+  const halo = ctx.createRadialGradient(centre, centre, 0, centre, centre, size * 0.42);
+  halo.addColorStop(0, "rgba(8,10,14,0.78)");
+  halo.addColorStop(0.55, "rgba(8,10,14,0.42)");
+  halo.addColorStop(1, "rgba(8,10,14,0)");
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(centre, centre, size * 0.42, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.font = `600 ${Math.floor(size * 0.56)}px "Cinzel", Georgia, serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  // Same engraved serif the board edge uses for its rank and file letters, so
+  // the count reads as part of the hall rather than as a HUD sticker.
+  ctx.fillStyle = "rgba(0,0,0,0.7)";
+  ctx.fillText(String(index), centre + size * 0.016, centre + size * 0.032);
+  ctx.fillStyle = "rgba(255,255,255,0.97)";
+  ctx.fillText(String(index), centre, centre + size * 0.016);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 /** Gold frame drawn under the piece the player has picked up. */
 export function selectMarkerTexture(): THREE.CanvasTexture {
   const size = 256;

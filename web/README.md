@@ -210,6 +210,29 @@ starts and stops *inside* the marks rather than crossing them, breathing togethe
 `0.32` opacity. One mesh per possible link is built up front (`MAX_PREMOVE_LINKS = 5`), so a chain
 growing mid-wait allocates nothing.
 
+**One arrow answers where the plan ends — not what happens second.** Three queued moves put three
+identical dim rings on the board joined by threads that cross one another from a low camera, and the
+only thing the player can reconstruct is the *set* of squares. So every link carries its ordinal:
+`premoveOrderTexture(n)` paints 1–5, and `setPremoveOrders()` hangs one over each link's
+**destination** — the square that link creates — read in the order the moves will run.
+
+- **A glyph, not a coin.** The dismiss disc is the only pressable thing in the premove language, so
+  a second filled disc would read as a second button. The numeral is a bare glyph over a soft dark
+  radial halo — a gradient with no rim, legible against pale marble, dark basalt and a figure's
+  shoulder alike, and plainly not a target.
+- **It does not bob.** The coin bobs because hanging *and moving* is what marks it out as a control.
+  The numerals hold still at `ORDER_LIFT = 0.28`, below the coin's `CANCEL_LIFT = 0.62`, so on the
+  last link the two stack — numeral under coin — instead of colliding.
+- **`depthTest: false` at `renderOrder = 11`**, under the coin's `12`. A chain runs *through* the
+  figures still standing on the board, so the mark that says "this happens third" cannot be the one
+  hidden behind a rook — and it must never draw over the button.
+- **Never shown for a lone queued move.** `setPremoveOrders()` ignores a single square: a "1" on its
+  own answers a question nobody asked, on a tile already carrying a ring, a frame, a thread and a
+  coin. The count appears from the second link on, when there is finally an order to read.
+- The head is full strength and the tail dims (`1 - index * 0.1`, floored at `0.62`), so the eye is
+  pulled to the move that runs next. Cut in the same engraved Cinzel serif as the rank and file
+  letters on the board's edge, so the count belongs to the hall instead of sitting on it like a HUD.
+
 The figures themselves never move — they are marked, not relocated — and the placing tap is the same
 wooden tick as a selection at half the volume, with no lift. Deeper in the chain the square the tap
 lands on is bare stone, so the tick is panned by where the *plan* puts the piece and weighted by the

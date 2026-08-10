@@ -12,6 +12,7 @@ import {
   moveMarkerTexture,
   premoveCancelTexture,
   premoveMarkerTexture,
+  premoveOrderTexture,
   premoveTargetTexture,
   promoteMarkerTexture,
   landingRingTexture,
@@ -165,6 +166,17 @@ const CANCEL_COLD = new THREE.Color(0xd7e2f6);
 /** Under the pointer it warms to an ember — this is the button that destroys. */
 const CANCEL_HOT = new THREE.Color(0xff8f7a);
 
+/**
+ * How high the order numerals ride. Low enough to belong to the square, well
+ * clear of the dismiss coin at {@link CANCEL_LIFT} so the two never collide on
+ * the last link of a chain — they stack, numeral under coin.
+ */
+const ORDER_LIFT = 0.28;
+/** World size of an order numeral sprite. */
+const ORDER_SIZE = 0.34;
+/** The pewter the whole premove language is painted in. */
+const ORDER_TINT = new THREE.Color(0xe6edff);
+
 /** Overshooting ease so squares snap into place with a little punch. */
 function easeOutBack(t: number): number {
   const c = 1.9;
@@ -288,6 +300,10 @@ export class BoardView {
   private premoveCancelHot = false;
   private premoveCancelHeat = 0;
   private premoveCancelAge = 0;
+  /** The 1..5 numerals riding over each square of the queued chain. */
+  private premoveOrders: THREE.Sprite[] = [];
+  private premoveOrderMaterials: THREE.SpriteMaterial[] = [];
+  private premoveOrderAges: number[] = [];
   /** Materials the arena theme repaints (tile contrast, base stone, trim). */
   private lightTileMaterial: THREE.MeshPhysicalMaterial;
   private darkTileMaterial: THREE.MeshPhysicalMaterial;
@@ -377,6 +393,68 @@ export class BoardView {
 
     this.buildPremoveLink();
     this.buildPremoveCancel();
+    this.buildPremoveOrders();
+  }
+
+  /**
+   * The order numerals. Like the coin they are sprites with the depth test off:
+   * a chain runs *through* the figures still standing on the board, so the one
+   * mark that says "this happens third" cannot be the one hidden behind a rook.
+   */
+  private buildPremoveOrders(): void {
+    for (let index = 0; index < MAX_PREMOVE_LINKS; index += 1) {
+      const material = this.track(
+        new THREE.SpriteMaterial({
+          map: this.track(premoveOrderTexture(index + 1)),
+          color: ORDER_TINT.clone(),
+          transparent: true,
+          opacity: 0,
+          depthTest: false,
+          depthWrite: false,
+        }),
+      );
+      const sprite = new THREE.Sprite(material);
+      sprite.visible = false;
+      // Under the coin (12) so a numeral never draws over the dismiss button.
+      sprite.renderOrder = 11;
+      sprite.scale.setScalar(ORDER_SIZE);
+      this.premoveOrders.push(sprite);
+      this.premoveOrderMaterials.push(material);
+      this.premoveOrderAges.push(0);
+      this.group.add(sprite);
+    }
+  }
+
+  /**
+   * Numbers the squares of the queued chain, oldest first.
+   *
+   * A lone queued move gets **no** numeral: "1" on its own answers a question
+   * nobody asked and adds a mark to a board that is already carrying a ring, a
+   * frame, a thread and a coin. The count only appears once there is an order
+   * to read — from the second link on.
+   */
+  setPremoveOrders(squares: SquareId[]): void {
+    const numbered = squares.length > 1 ? squares : [];
+    for (let index = 0; index < this.premoveOrders.length; index += 1) {
+      const sprite = this.premoveOrders[index];
+      const square = numbered[index];
+      if (!square) {
+        sprite.visible = false;
+        this.premoveOrderMaterials[index].opacity = 0;
+        continue;
+      }
+      const centre = squareToWorld(square, BOARD_TOP);
+      sprite.position.set(centre.x, BOARD_TOP + ORDER_LIFT, centre.z);
+      if (!sprite.visible) {
+        this.premoveOrderAges[index] = 0;
+        this.premoveOrderMaterials[index].opacity = 0;
+      }
+      // The head of the chain is the link that runs next, so it is the bright
+      // one; the tail dims off so the eye reads the plan in order.
+      const fade = index === 0 ? 1 : Math.max(0.62, 1 - index * 0.1);
+      this.premoveOrderMaterials[index].color.copy(ORDER_TINT).multiplyScalar(fade);
+      sprite.visible = !this.overlaysMuted;
+    }
   }
 
   /**
@@ -978,6 +1056,7 @@ export class BoardView {
       this.setShroud(null);
       this.setPremoveLinks([]);
       this.setPremoveCancel(null);
+      this.setPremoveOrders([]);
     }
     for (const slot of this.slots.values()) {
       if (kinds && slot.kind && !kinds.includes(slot.kind)) continue;
@@ -1049,6 +1128,21 @@ export class BoardView {
   }
 
   /**
+   * Pops each numeral in. They do not bob: bobbing is what marks the coin out
+   * as a control, and a number you can press would be a lie.
+   */
+  private updatePremoveOrders(delta: number): void {
+    for (let index = 0; index < this.premoveOrders.length; index += 1) {
+      const sprite = this.premoveOrders[index];
+      if (!sprite.visible) continue;
+      this.premoveOrderAges[index] = Math.min(this.premoveOrderAges[index] + delta, POP_DURATION);
+      const pop = easeOutBack(this.premoveOrderAges[index] / POP_DURATION);
+      sprite.scale.setScalar(ORDER_SIZE * (0.5 + pop * 0.5));
+      this.premoveOrderMaterials[index].opacity = 0.92 * Math.min(1, pop);
+    }
+  }
+
+  /**
    * Silences the overlays that deliberately ignore the depth buffer — the x-ray
    * reticles. They are drawn through everything in the way, a modal panel
    * included, so they have to stand down while one is up.
@@ -1057,6 +1151,11 @@ export class BoardView {
     if (this.overlaysMuted === muted) return;
     this.overlaysMuted = muted;
     this.premoveCancel.visible = !muted && this.premoveCancelSquare !== null;
+    for (let index = 0; index < this.premoveOrders.length; index += 1) {
+      const sprite = this.premoveOrders[index];
+      if (muted) sprite.visible = false;
+      else if (this.premoveOrderMaterials[index].opacity > 0) sprite.visible = true;
+    }
     if (!muted) return;
     for (const slot of this.slots.values()) {
       slot.xray.visible = false;
@@ -1083,6 +1182,7 @@ export class BoardView {
       this.premoveLinkMaterial.opacity = 0.16 + wave * 0.16;
     }
     this.updatePremoveCancel(delta);
+    this.updatePremoveOrders(delta);
     for (const slot of this.slots.values()) {
       const kind = slot.kind;
       if (!kind) continue;

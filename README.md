@@ -247,6 +247,16 @@ mark on the board that does not turn, so it stays square to the ground it is cla
 breathe from link to link so the whole plan reads in one glance. The figures never move until the
 moves do.
 
+**And every square in the chain wears its number.** One arrow says where the plan *ends*; it says
+nothing about what happens second. Three queued moves leave three identical rings joined by threads
+that cross one another from a low camera, and all you can read back is the set of squares. So each
+square carries its turn — 1, 2, 3 — cut in the same engraved serif as the rank and file letters on
+the board's edge, hanging just above the stone and drawn in front of any figure in the way. It is a
+bare numeral with a soft dark halo, never a disc: the dismiss coin is the only thing here you press,
+and nothing else is allowed to look like it. The move that runs next is the brightest, and the tail
+dims away behind it. A single queued move gets no number at all — a lone "1" answers a question
+nobody asked.
+
 **And there is a button to take a move back.** A small dark coin with a struck cross floats just
 above the last square of the chain, bobbing gently so it reads as a control rather than another mark
 on the stone. Tap it and the last queued move is gone, and the coin hops back to the new end of the

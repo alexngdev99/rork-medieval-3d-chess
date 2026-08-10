@@ -4697,6 +4697,10 @@ export class SceneEngine {
    */
   private applyPremoveHighlight(): void {
     this.board.setPremoveLinks(this.premoveChain);
+    // Which square is *third* cannot be read off the marks: the rings are all
+    // alike and the threads cross. The numerals sit on the destinations, so
+    // they read in the same order the moves will run.
+    this.board.setPremoveOrders(this.premoveChain.map((link) => link.to));
     const last = this.premoveChain.length > 0 ? this.premoveChain[this.premoveChain.length - 1] : null;
     // The dismiss coin only makes sense while a move is still waiting, and it
     // hangs over the *end* of the chain because that is the link it takes back.
@@ -4719,6 +4723,7 @@ export class SceneEngine {
   private async flashPremoveLost(from: SquareId, to: SquareId, dropped: number): Promise<void> {
     this.premoveChain = [];
     this.board.setPremoveCancel(null);
+    this.board.setPremoveOrders([]);
     // A whole plan going down deserves more than the same beat as one move.
     if (dropped > 1) this.shake.tremor(0.09, 0.4);
     this.premoveCancelHovered = false;
