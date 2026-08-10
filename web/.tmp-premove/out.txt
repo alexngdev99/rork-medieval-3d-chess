@@ -1,0 +1,12 @@
+[easy] search ms  mean 7  p50 6  p90 10  max 15
+[easy] felt wait  mean 420  p50 420  p90 420  (search floored at 420ms)
+[easy] premoves offered 335  legal already 0.0%
+[easy] survived after reply: geometric 40.3%  of-those-legal-before 0.0%
+[medium] search ms  mean 615  p50 698  p90 837  max 979
+[medium] felt wait  mean 651  p50 698  p90 837  (search floored at 420ms)
+[medium] premoves offered 135  legal already 0.0%
+[medium] survived after reply: geometric 32.6%  of-those-legal-before 0.0%
+[hard] search ms  mean 3070  p50 3328  p90 3538  max 3582
+[hard] felt wait  mean 3103  p50 3328  p90 3538  (search floored at 420ms)
+[hard] premoves offered 37  legal already 0.0%
+[hard] survived after reply: geometric 32.4%  of-those-legal-before 0.0%

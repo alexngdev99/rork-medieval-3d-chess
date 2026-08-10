@@ -15,6 +15,8 @@ export interface GameSettings {
   skins: Record<Faction, ArmySkinId>;
   captureCinematics: boolean;
   rotateBoard: boolean;
+  /** Queue a move while the machine is still on the clock. */
+  premoves: boolean;
   /** Floating rank crests over every figure. */
   rankBadges: boolean;
   muted: boolean;
@@ -148,6 +150,14 @@ export function SettingsPanel({
           }`}
           value={settings.rotateBoard}
           onChange={(value) => onChange({ ...settings, rotateBoard: value })}
+        />
+        <Toggle
+          label="Queue a move while the machine thinks"
+          note={`Against the computer — aim a figure during the wait and it plays the instant the turn returns. ${
+            hasKeyboard ? "Esc, or a tap off the board, takes it back" : "A tap off the board takes it back"
+          }`}
+          value={settings.premoves}
+          onChange={(value) => onChange({ ...settings, premoves: value })}
         />
         <Toggle
           label="Rank crests above pieces"

@@ -16,6 +16,7 @@ import {
   type LedgerMove,
   type MoveEvent,
   type PieceKind,
+  type Premove,
   type SquareId,
   PIECE_VALUE,
 } from "./types";
@@ -53,9 +54,68 @@ interface ControllerEvents {
   gameover: GameResult;
   reset: StartOptions;
   illegal: { from: SquareId; to: SquareId };
+  /** The queued move changed — null when it was cleared or has just run. */
+  premove: Premove | null;
+  /** A queued move could not be played after the reply and was dropped. */
+  premovefailed: { from: SquareId; to: SquareId };
 }
 
 const CLOCK_TICK_MS = 100;
+
+const FILES = "abcdefgh";
+
+/** Ray directions per sliding piece, as (file, rank) steps. */
+const SLIDES: Record<string, [number, number][]> = {
+  b: [
+    [1, 1],
+    [1, -1],
+    [-1, 1],
+    [-1, -1],
+  ],
+  r: [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ],
+  q: [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+    [1, 1],
+    [1, -1],
+    [-1, 1],
+    [-1, -1],
+  ],
+};
+
+const KNIGHT_STEPS: [number, number][] = [
+  [1, 2],
+  [2, 1],
+  [2, -1],
+  [1, -2],
+  [-1, -2],
+  [-2, -1],
+  [-2, 1],
+  [-1, 2],
+];
+
+const KING_STEPS: [number, number][] = [
+  [1, 0],
+  [1, 1],
+  [0, 1],
+  [-1, 1],
+  [-1, 0],
+  [-1, -1],
+  [0, -1],
+  [1, -1],
+];
+
+function toSquare(file: number, rank: number): SquareId | null {
+  if (file < 0 || file > 7 || rank < 0 || rank > 7) return null;
+  return `${FILES[file]}${rank + 1}`;
+}
 
 /**
  * Owns all chess state. Rendering, audio and UI subscribe to it; it knows
@@ -92,6 +152,9 @@ export class GameController extends Emitter<ControllerEvents> {
   private result: GameResult | null = null;
   private thinking = false;
   private busy = false;
+  /** Move the player queued while the engine was on the clock. */
+  private premove: Premove | null = null;
+  private premovesEnabled = true;
   private snapshot: GameSnapshot = this.buildSnapshot();
 
   /** The renderer registers an async animator; moves wait for it to finish. */
@@ -171,6 +234,136 @@ export class GameController extends Emitter<ControllerEvents> {
     return { kind: piece.type as PieceKind, color: piece.color as Faction };
   }
 
+  // ---------------------------------------------------------------- premoves
+
+  /**
+   * Whether a move can be queued right now.
+   *
+   * The window is exactly "the player is waiting on the machine": both while the
+   * engine searches *and* while the previous move is still being played out on
+   * screen, which is the half of the wait the search timings do not show.
+   */
+  canPremove(): boolean {
+    if (!this.premovesEnabled) return false;
+    if (this.options.mode !== "ai" || this.status !== "playing") return false;
+    return !this.isHumanTurn();
+  }
+
+  setPremovesEnabled(enabled: boolean): void {
+    if (this.premovesEnabled === enabled) return;
+    this.premovesEnabled = enabled;
+    if (!enabled) this.clearPremove();
+  }
+
+  getPremove(): Premove | null {
+    return this.premove;
+  }
+
+  /**
+   * Squares a piece could ever step to, read off its movement geometry rather
+   * than off the position.
+   *
+   * A premove is aimed at a board that does not exist yet, so a blocker is not a
+   * reason to withhold a square: the piece standing in the way may well be the
+   * thing that moves. Legality is settled once, later, when the move actually
+   * runs.
+   */
+  premoveTargets(from: SquareId): SquareId[] {
+    const piece = this.chess.get(from as Square);
+    if (!piece) return [];
+    const file = FILES.indexOf(from[0]);
+    const rank = Number(from[1]) - 1;
+    const out = new Set<SquareId>();
+    const add = (f: number, r: number): void => {
+      const square = toSquare(f, r);
+      if (square) out.add(square);
+    };
+
+    if (piece.type === "p") {
+      const dir = piece.color === "w" ? 1 : -1;
+      add(file, rank + dir);
+      if (rank === (piece.color === "w" ? 1 : 6)) add(file, rank + dir * 2);
+      // Both diagonals: the capture may not exist yet, and en passant never does.
+      add(file - 1, rank + dir);
+      add(file + 1, rank + dir);
+    } else if (piece.type === "n") {
+      for (const [df, dr] of KNIGHT_STEPS) add(file + df, rank + dr);
+    } else if (piece.type === "k") {
+      for (const [df, dr] of KING_STEPS) add(file + df, rank + dr);
+      // Castling is offered from the home square whether or not it is legal yet.
+      const home = piece.color === "w" ? "e1" : "e8";
+      if (from === home) {
+        add(file + 2, rank);
+        add(file - 2, rank);
+      }
+    } else {
+      for (const [df, dr] of SLIDES[piece.type]) {
+        for (let step = 1; step < 8; step += 1) add(file + df * step, rank + dr * step);
+      }
+    }
+
+    out.delete(from);
+    return [...out];
+  }
+
+  /** True when a queued pawn move would land on the last rank. */
+  isPremovePromotion(from: SquareId, to: SquareId): boolean {
+    const piece = this.chess.get(from as Square);
+    if (!piece || piece.type !== "p") return false;
+    return to[1] === (piece.color === "w" ? "8" : "1");
+  }
+
+  /**
+   * Queues a move. Only one is ever held: a second one replaces the first,
+   * which is the whole gesture for changing your mind.
+   */
+  setPremove(from: SquareId, to: SquareId, promotion?: PieceKind): boolean {
+    if (!this.canPremove()) return false;
+    const piece = this.chess.get(from as Square);
+    if (!piece || piece.color !== this.options.playerColor) return false;
+    if (!this.premoveTargets(from).includes(to)) return false;
+    this.premove = { from, to, promotion: promotion ?? null };
+    this.publish();
+    this.emit("premove", this.premove);
+    return true;
+  }
+
+  clearPremove(): void {
+    if (!this.premove) return;
+    this.premove = null;
+    this.publish();
+    this.emit("premove", null);
+  }
+
+  /**
+   * Plays the queued move if the reply left it playable, and drops it if not.
+   * Returns true when a move was actually played, so the caller knows the turn
+   * has already moved on.
+   */
+  private async consumePremove(): Promise<boolean> {
+    const queued = this.premove;
+    if (!queued) return false;
+    this.premove = null;
+
+    if (!this.premovesEnabled || this.options.mode !== "ai" || !this.isHumanTurn()) {
+      this.publish();
+      this.emit("premove", null);
+      return false;
+    }
+
+    const legal = (this.chess.moves({ square: queued.from as Square, verbose: true }) as Move[]).some(
+      (move) => move.to === queued.to,
+    );
+    this.emit("premove", null);
+    if (!legal) {
+      this.publish();
+      this.emit("premovefailed", { from: queued.from, to: queued.to });
+      return false;
+    }
+    this.publish();
+    return this.play(queued.from, queued.to, queued.promotion ?? undefined);
+  }
+
   isHumanTurn(): boolean {
     if (this.status !== "playing" || this.busy) return false;
     if (this.options.mode === "attract" || this.options.mode === "demo") return false;
@@ -191,6 +384,7 @@ export class GameController extends Emitter<ControllerEvents> {
     this.result = null;
     this.thinking = false;
     this.busy = false;
+    this.premove = null;
     const ms = options.clockMinutes ? options.clockMinutes * 60_000 : 0;
     this.clock = {
       enabled: options.clockMinutes !== null,
@@ -215,6 +409,7 @@ export class GameController extends Emitter<ControllerEvents> {
     this.status = "idle";
     this.thinking = false;
     this.busy = false;
+    this.premove = null;
     this.paused = false;
     this.releasePause();
     this.syncElapsed();
@@ -363,6 +558,9 @@ export class GameController extends Emitter<ControllerEvents> {
     this.publish();
 
     if (this.checkEnd()) return;
+    // A queued move is played from here rather than from the engine turn: the
+    // moment the board is handed back is the moment the player meant.
+    if (await this.consumePremove()) return;
     void this.maybeRunEngine();
   }
 
@@ -424,6 +622,7 @@ export class GameController extends Emitter<ControllerEvents> {
     this.status = "over";
     this.thinking = false;
     this.busy = false;
+    this.premove = null;
     this.result = result;
     this.syncElapsed();
     this.publish();
@@ -460,6 +659,7 @@ export class GameController extends Emitter<ControllerEvents> {
     if (this.chess.history().length === 0) return false;
     this.generation += 1;
     this.ai.cancel();
+    this.premove = null;
     this.chess.undo();
     if (this.options.mode === "ai" && this.chess.turn() !== this.options.playerColor) {
       this.chess.undo();
@@ -614,6 +814,7 @@ export class GameController extends Emitter<ControllerEvents> {
       captured,
       materialDiff: diff,
       lastMove: last ? { from: last.from, to: last.to } : null,
+      premove: this.premove ? { ...this.premove } : null,
       clock: { ...this.clock },
       elapsed: this.getElapsed(),
       canUndo:

@@ -26,11 +26,12 @@ bun run preview
 | Promotion | Tap a candidate, or press `Q` `R` `B` `N` — see [The promotion picker](#the-promotion-picker) |
 | Move | Click a highlighted square — including one standing behind a figure, see [Clicking a square behind a figure](#clicking-a-square-behind-a-figure) (click the figure again to deselect) |
 | Camera | Camera icon in the top bar (presets, flip, tactical) |
+| Queue a move | While the machine is thinking, tap your figure then its square — it plays itself the instant the turn returns, see [Queuing a move while the machine thinks](#queuing-a-move-while-the-machine-thinks) |
 | Two players on one screen | The board does **not** turn itself between turns — see [Hotseat: the view holds still](#hotseat-the-view-holds-still) |
 | Armies & battleground | Picked on the main menu before the duel; read-only in settings once a duel is running |
 | What a button does | Hover, focus or tap it — every icon carries a tooltip |
 | Skip the intro | Click anywhere during the opening sweep |
-| Settings | Gear icon (graphics preset, brightness, capture cinematics, board swing, rank crests, sound) |
+| Settings | Gear icon (graphics preset, brightness, capture cinematics, board swing, queued moves, rank crests, sound) |
 
 There is no drag-and-drop; both selecting and moving resolve on pointer release, and a press
 that travels more than 8px (16px for a finger) counts as a camera swing instead.
@@ -45,7 +46,7 @@ keys](#key-hints-only-where-there-are-keys).
 | `H` | Open / fold the chronicle |
 | `C` | Cinema mode — hide the whole overlay |
 | `Space` | Pause / resume a showcase duel |
-| `Esc` | Close the settings panel, camera menu, chronicle or tooltip |
+| `Esc` | Close the settings panel, camera menu, chronicle or tooltip — then take back a queued move |
 
 ### Key hints only where there are keys
 
@@ -88,6 +89,68 @@ So `rotateBoard` now defaults to **off** and the choice is **remembered** (`kg.t
 so it reads as the hall turning rather than a cut. The manual flip is untouched: `F`, or the flip
 button in the camera menu, still turns the view instantly whenever a player wants it, and being asked
 for is what makes it comfortable.
+
+### Queuing a move while the machine thinks
+
+The board went **deaf** the moment the player's move was made: `onPointerUp` early-returned on
+`!isHumanTurn()`, so every tap during the reply was thrown away — including the taps of a player who
+already knew exactly what they wanted to play.
+
+How long that deafness lasts, replayed headless through the real `engine.worker.ts` search over full
+games (8 games easy and medium, 3 hard, 60 plies each):
+
+| Difficulty | Search, mean | p50 | p90 | max | Felt wait per ply |
+| --- | --- | --- | --- | --- | --- |
+| Easy | 7 ms | 6 ms | 10 ms | 15 ms | 420 ms (the anti-robotic floor *is* the wait) |
+| Medium | 615 ms | 698 ms | 837 ms | 979 ms | ~0.65 s |
+| Hard | 3070 ms | 3328 ms | 3538 ms | 3582 ms | ~3.1 s |
+
+And the search is only the first half: the reply is then *performed*. A plain march is clamped to
+0.34–2.4 s of walking (`glide`), a capture adds the battle beat on top, and `busy` is held down for
+all of it. So on hard the board is out of the player's hands for **four to six seconds every single
+ply** — with a clock running, that is the player's own time being spent watching.
+
+**Which squares are offered.** A premove is aimed at a position that does not exist yet, so
+`premoveTargets()` reads a figure's *geometry* rather than the board: rays run the full length of
+the file regardless of what is standing in them, a pawn is offered both diagonals whether or not
+there is anything to take, and the king is offered `g1`/`c1` from its home square. A blocker is not
+a reason to withhold a square — the blocker may well be the thing that moves.
+
+That generosity costs accuracy, and it was measured too. Queueing a *random* geometric move from a
+random own piece survives the reply **40.3% (easy) / 32.6% (medium) / 32.4% (hard)** of the time.
+But nobody queues at random: restricted to moves that are already legal at the moment they are
+placed — the sensible ones — survival is **73.9%**, and the 26% that die are almost entirely
+*king in check* (18.0%) and *path blocked* (8.1%), with the queued piece being captured outright
+too rare to register in 111 samples. Three moves in four are worth the wait they save.
+
+**The rules, all of them in `GameController`:**
+
+- The window is `canPremove()` — mode `ai`, game running, and `!isHumanTurn()`. That deliberately
+  covers both halves of the wait: the search *and* the move animation, which is the half the
+  timings above do not show.
+- **One move is held.** A second `setPremove()` replaces the first; that is the whole gesture for
+  changing your mind.
+- The crown for a queued promotion is chosen **when the move is placed**, not when it runs — a
+  picker opening halfway through the engine's reply would defeat the point of queueing.
+- `consumePremove()` runs from `commit()`, the moment the board is handed back, before
+  `maybeRunEngine()`. Legal → played like any other move. Not legal → dropped, and `premovefailed`
+  is emitted so the board can say so.
+- The queue is cleared by a new game, `stop()`, `undo()`, the end of the battle, and by switching
+  the feature off.
+
+**On the stone.** Offered squares light in `premove` and the queued move's two squares in `queued` —
+cold pewter (`0x7d8ba3` / `0xa9bcdd`), deliberately outside the emerald/red/violet/azure palette
+every *played* move uses, at roughly half the glow. Both use `premoveMarkerTexture()`: a **broken**
+ring of dashes with a hollow centre, where every real move marker is solid and closed. An intention
+should not be able to be mistaken for the move happening in front of it. The figure itself never
+moves — it is marked, not relocated — and the placing tap is the same wooden tick as a selection at
+half the volume, with no lift.
+
+When the reply kills the move, both squares beat red once for 0.55 s with the deny blip and vanish.
+No dialog, nothing to dismiss: the player just watched the move that killed it.
+
+Off switch in settings (*Queue a move while the machine thinks*), on by default, remembered in
+`kg.premove`. Rules are covered by `src/core/premove.test.ts`.
 
 ### Clicking a square behind a figure
 

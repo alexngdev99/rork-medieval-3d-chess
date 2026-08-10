@@ -20,6 +20,7 @@ cd web && bun install && bun run dev
 - [Features](#features)
 - [Quick start](#quick-start)
 - [Controls](#controls)
+  - [Queuing a move while the machine thinks](#queuing-a-move-while-the-machine-thinks)
 - [Interface](#interface)
   - [Reading the promotion picker](#reading-the-promotion-picker)
 - [Game modes](#game-modes)
@@ -147,7 +148,8 @@ Cloudflare Pages or any static host. No environment variables are required to ru
 | Camera & battleground | Camera icon in the top bar — Ivory / Obsidian / Overhead / Cinematic, flip, tactical, and the four arenas |
 | What a button does | Hover or focus it (tap it on touch) — every icon carries a tooltip |
 | Skip the intro | Click anywhere during the opening sweep |
-| Settings | Gear icon — armies, battleground, graphics preset, capture cinematics, board swing, sound |
+| Queue a move | While the computer is thinking, tap your figure then its square — the move plays itself the moment the turn returns, see [Queuing a move while the machine thinks](#queuing-a-move-while-the-machine-thinks) |
+| Settings | Gear icon — armies, battleground, graphics preset, capture cinematics, board swing, queued moves, sound |
 
 There is no drag-and-drop: a press that travels more than 8px (16px for a finger — a tap on
 glass always drifts) is read as a camera swing, so orbiting from a figure never moves it.
@@ -176,7 +178,7 @@ only where there are keys](web/README.md#key-hints-only-where-there-are-keys)):
 | `H` | Open / fold the chronicle (move record and spoils) |
 | `C` | Toggle cinema mode (hide the entire interface) |
 | `Space` | Pause / resume playback in showcase mode |
-| `Esc` | Close the settings panel, camera menu, chronicle or an open tooltip |
+| `Esc` | Close the settings panel, camera menu, chronicle or an open tooltip — then take back a queued move |
 
 **A phone is never told to press a key.** Every hint above — the key caps in the tooltips, the
 `(T)`/`(F)`/`(C)` reminders, the promotion banner's *OR PRESS Q R B N*, *SCROLL TO ZOOM*, *CLICK TO
@@ -184,6 +186,42 @@ SKIP* — used to be printed on touch devices too: **13 places naming a key or a
 device does not have**, on the screen with the least room to waste. They now check first, and a
 tablet that gets a case keyboard earns its key caps back the first time a real key arrives. Where the
 gesture differs the wording follows the hand: *PINCH TO ZOOM*, *TAP TO SKIP*, *TAP A FIGURE*.
+
+### Queuing a move while the machine thinks
+
+The board used to go **deaf** the instant your move was made. Every tap during the computer's reply
+was thrown away — including the taps of a player who already knew exactly what they wanted to play.
+
+How long that silence lasts was measured, not guessed: full games replayed headless through the real
+search. The engine takes **7 ms on easy, 615 ms on medium and 3.07 s on hard** (mean; hard peaks at
+3.58 s), and easy is floored at 420 ms anyway so instant replies do not feel robotic. Then the reply
+is *performed* — a march is 0.34–2.4 s of walking, a capture adds the whole battle beat on top — and
+the board stays locked for all of it. On hard that is **four to six seconds every ply** with your own
+clock running.
+
+So against the computer you can now aim your next move during the wait. Tap your figure, tap its
+square; the move is *held*, not played, and it goes the moment the turn comes back — costing you
+almost nothing on the clock.
+
+- **The squares offered are geometric, not legal.** A rook is offered its whole file even with a
+  pawn standing in it, a pawn gets both diagonals whether or not there is anything to take, and the
+  king is offered its two castling squares. The move is aimed at a position that does not exist
+  yet, and the piece in the way may be the very thing that moves.
+- **One move at a time.** Aiming a second one replaces the first. Take it back with `Esc`, a tap off
+  the board, or a tap on the queued figure itself.
+- **The crown is chosen up front.** A queued pawn push to the last rank opens the usual picker
+  *there and then*, so nothing interrupts the move when it runs.
+- **If the reply killed it, it is dropped** — never played blind. Both squares beat red once and
+  clear; there is no dialog, because you just watched the move that killed it.
+- **It survives three times in four.** Of queued moves that were legal when placed, **73.9%** were
+  still legal after the computer replied; the rest died to a check (18.0%) or a blocked path
+  (8.1%). Queue at random and it drops to ~33–40%.
+
+On the board a queued move is unmistakably *an intention*: cold pewter marks in a broken, dashed
+ring — outside the green/red/violet/azure palette every played move uses — joined by a thin thread
+that breathes. The figure never moves until the move does. Off switch in settings, on by default.
+The rules and the full measurements: [Queuing a move while the machine
+thinks](web/README.md#queuing-a-move-while-the-machine-thinks).
 
 ## Interface
 

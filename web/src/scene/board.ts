@@ -10,6 +10,7 @@ import {
   columnTexture,
   marbleTexture,
   moveMarkerTexture,
+  premoveMarkerTexture,
   promoteMarkerTexture,
   landingRingTexture,
   radialTexture,
@@ -31,7 +32,11 @@ export type HighlightKind =
   | "promote"
   | "last"
   | "check"
-  | "hint";
+  | "hint"
+  /** Square a queued move *could* be aimed at while the engine is thinking. */
+  | "premove"
+  /** The two squares of the move that is actually queued. */
+  | "queued";
 
 const HIGHLIGHT_COLORS: Record<HighlightKind, number> = {
   select: 0xffc95e,
@@ -42,6 +47,10 @@ const HIGHLIGHT_COLORS: Record<HighlightKind, number> = {
   last: 0xd9a441,
   check: 0xff3b30,
   hint: 0x6aa9ff,
+  // Cold pewter, deliberately outside the palette every *played* move uses:
+  // an intention has no business competing with the move on the board.
+  premove: 0x7d8ba3,
+  queued: 0xa9bcdd,
 };
 
 /** How dark an unreachable square goes while a piece is selected. */
@@ -57,6 +66,8 @@ const GLOW_OPACITY: Record<HighlightKind, number> = {
   last: 0.22,
   check: 0.6,
   hint: 0.3,
+  premove: 0.2,
+  queued: 0.34,
 };
 
 /** Base opacity of the crisp reticle drawn on top of the glow. */
@@ -69,6 +80,8 @@ const MARKER_OPACITY: Record<HighlightKind, number> = {
   last: 0,
   check: 0.8,
   hint: 0.5,
+  premove: 0.42,
+  queued: 0.8,
 };
 
 /** Base opacity of the vertical light column standing on the square. */
@@ -81,6 +94,8 @@ const BEAM_OPACITY: Record<HighlightKind, number> = {
   last: 0,
   check: 0.3,
   hint: 0.12,
+  premove: 0.08,
+  queued: 0.2,
 };
 
 /**
@@ -104,6 +119,8 @@ const XRAY_OPACITY: Record<HighlightKind, number> = {
   last: 0,
   check: 0,
   hint: 0.26,
+  premove: 0.2,
+  queued: 0.34,
 };
 
 /** Radians per second the reticle spins (capture locks turn the other way). */
@@ -116,6 +133,8 @@ const MARKER_SPIN: Record<HighlightKind, number> = {
   last: 0,
   check: 0.5,
   hint: 0.2,
+  premove: 0.12,
+  queued: 0.22,
 };
 
 const POP_DURATION = 0.26;
@@ -228,8 +247,13 @@ export class BoardView {
     last: null,
     check: null,
     hint: null,
+    premove: null,
+    queued: null,
   };
   private hoverRing: THREE.Mesh;
+  /** The thread drawn between the two squares of a queued move. */
+  private premoveLink!: THREE.Mesh;
+  private premoveLinkMaterial!: THREE.MeshBasicMaterial;
   /** Materials the arena theme repaints (tile contrast, base stone, trim). */
   private lightTileMaterial: THREE.MeshPhysicalMaterial;
   private darkTileMaterial: THREE.MeshPhysicalMaterial;
@@ -316,6 +340,58 @@ export class BoardView {
     this.hoverRing.position.y = BOARD_TOP + 0.012;
     this.hoverRing.renderOrder = 5;
     this.group.add(this.hoverRing);
+
+    this.buildPremoveLink();
+  }
+
+  /**
+   * The thread between the two squares of a queued move. Two marks alone read
+   * as two unrelated lights on a busy board; the line is what makes them one
+   * move at a glance, and it breathes so it is never mistaken for a played one.
+   */
+  private buildPremoveLink(): void {
+    const geometry = this.track(new THREE.PlaneGeometry(1, 1));
+    geometry.rotateX(-Math.PI / 2);
+    const material = this.track(
+      new THREE.MeshBasicMaterial({
+        map: this.track(radialTexture("rgba(255,255,255,0.85)", "rgba(255,255,255,0)")),
+        color: HIGHLIGHT_COLORS.queued,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    this.premoveLinkMaterial = material;
+    this.premoveLink = new THREE.Mesh(geometry, material);
+    this.premoveLink.position.y = BOARD_TOP + 0.018;
+    this.premoveLink.visible = false;
+    this.premoveLink.renderOrder = 4;
+    this.group.add(this.premoveLink);
+  }
+
+  /** Lays the thread between a queued move's squares, or takes it away. */
+  setPremoveLink(move: { from: SquareId; to: SquareId } | null): void {
+    if (!move) {
+      this.premoveLink.visible = false;
+      this.premoveLinkMaterial.opacity = 0;
+      return;
+    }
+    const from = squareToWorld(move.from, BOARD_TOP);
+    const to = squareToWorld(move.to, BOARD_TOP);
+    const dx = to.x - from.x;
+    const dz = to.z - from.z;
+    const length = Math.hypot(dx, dz);
+    if (length < 0.001) {
+      this.premoveLink.visible = false;
+      return;
+    }
+    this.premoveLink.position.set((from.x + to.x) / 2, BOARD_TOP + 0.018, (from.z + to.z) / 2);
+    this.premoveLink.rotation.y = Math.atan2(-dz, dx);
+    // Pulled in at both ends so the thread starts and stops inside the two
+    // reticles rather than crossing them.
+    this.premoveLink.scale.set(Math.max(0.2, length - TILE * 0.5), 1, TILE * 0.22);
+    this.premoveLink.visible = true;
   }
 
   private track<T extends { dispose: () => void }>(item: T): T {
@@ -383,6 +459,8 @@ export class BoardView {
       check: this.track(captureMarkerTexture()),
       hint: this.track(moveMarkerTexture()),
       last: null,
+      premove: this.track(premoveMarkerTexture()),
+      queued: this.track(premoveMarkerTexture()),
     };
 
     let index = 0;
@@ -795,7 +873,10 @@ export class BoardView {
   }
 
   clearHighlights(kinds?: HighlightKind[]): void {
-    if (!kinds) this.setShroud(null);
+    if (!kinds) {
+      this.setShroud(null);
+      this.setPremoveLink(null);
+    }
     for (const slot of this.slots.values()) {
       if (kinds && slot.kind && !kinds.includes(slot.kind)) continue;
       slot.kind = null;
@@ -874,6 +955,10 @@ export class BoardView {
     this.elapsed += delta;
     this.updateImpacts(delta);
     this.updateShroud(delta);
+    if (this.premoveLink.visible) {
+      const wave = (Math.sin(this.elapsed * 2.2) + 1) * 0.5;
+      this.premoveLinkMaterial.opacity = 0.16 + wave * 0.16;
+    }
     for (const slot of this.slots.values()) {
       const kind = slot.kind;
       if (!kind) continue;

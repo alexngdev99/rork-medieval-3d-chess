@@ -30,6 +30,7 @@ const SHOWCASE_VERDICT_DELAY_MS = 2200;
 const RENDER_PREFS_KEY = "kg.render";
 const ARMY_PREFS_KEY = "kg.armies";
 const TABLE_PREFS_KEY = "kg.table";
+const PREMOVE_PREFS_KEY = "kg.premove";
 
 interface RenderPrefs {
   safeMode: boolean;
@@ -87,6 +88,30 @@ function saveSeatSwing(enabled: boolean): void {
 }
 
 /**
+ * Whether a move can be queued while the machine is still on the clock.
+ *
+ * On by default: the wait it fills is real (measured at ~0.7s per ply on
+ * medium and ~3.1s on hard, before the move animation on top), and the queue
+ * is invisible until the player actually aims something.
+ */
+function loadPremoves(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    return window.localStorage.getItem(PREMOVE_PREFS_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+function savePremoves(enabled: boolean): void {
+  try {
+    window.localStorage.setItem(PREMOVE_PREFS_KEY, enabled ? "queue" : "off");
+  } catch {
+    // Private browsing — the choice just will not survive the reload.
+  }
+}
+
+/**
  * Safe rendering and brightness are remembered across visits, and `?safe=1`
  * forces them on — a player whose driver blacks the hall out must not have to
  * find the toggle again on every reload.
@@ -127,6 +152,7 @@ export function GameShell() {
   const initialRender = useMemo<RenderPrefs>(() => loadRenderPrefs(), []);
   const initialArmies = useMemo<Record<Faction, ArmySkinId>>(() => loadArmyPrefs(), []);
   const initialSeatSwing = useMemo<boolean>(() => loadSeatSwing(), []);
+  const initialPremoves = useMemo<boolean>(() => loadPremoves(), []);
   /** Whether to print key hints at all — a phone has no `F` to press. */
   const hasKeyboard = useHasKeyboard();
   const [settings, setSettings] = useState<GameSettings>(() => ({
@@ -135,6 +161,7 @@ export function GameShell() {
     skins: initialArmies,
     captureCinematics: true,
     rotateBoard: initialSeatSwing,
+    premoves: initialPremoves,
     rankBadges: true,
     muted: false,
     safeMode: initialRender.safeMode,
@@ -260,6 +287,7 @@ export function GameShell() {
     }
     engine.setCaptureCinematics(settings.captureCinematics);
     engine.setRotateBoard(settings.rotateBoard);
+    controller.setPremovesEnabled(settings.premoves);
     engine.setRankBadges(settings.rankBadges);
     engine.setSafeMode(settings.safeMode);
     engine.setBrightness(settings.brightness);
@@ -267,7 +295,8 @@ export function GameShell() {
     saveRenderPrefs({ safeMode: settings.safeMode, brightness: settings.brightness });
     saveArmyPrefs(settings.skins);
     saveSeatSwing(settings.rotateBoard);
-  }, [settings, phase]);
+    savePremoves(settings.premoves);
+  }, [settings, phase, controller]);
 
   // ------------------------------------------------------------- attract mode
   const stopAttract = useCallback(() => {
@@ -454,7 +483,12 @@ export function GameShell() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") setShowSettings(false);
+      if (event.key === "Escape") {
+        setShowSettings(false);
+        // Same key, two jobs, in the order the player expects: a panel first,
+        // then the move they have queued on the board behind it.
+        if (!showSettings) controller.clearPremove();
+      }
       const target = event.target as HTMLElement | null;
       const typing = target ? /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable : false;
       if (typing || event.metaKey || event.ctrlKey || event.altKey || phase !== "playing") return;
@@ -478,7 +512,7 @@ export function GameShell() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [controller, handleFlipCamera, handleToggleTactical, phase, promotionOpen, snapshot.mode]);
+  }, [controller, handleFlipCamera, handleToggleTactical, phase, promotionOpen, showSettings, snapshot.mode]);
 
   const skipIntro = useCallback(() => {
     engineRef.current?.skipIntro();

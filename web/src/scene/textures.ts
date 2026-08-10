@@ -433,6 +433,44 @@ export function tileMaskTexture(): THREE.CanvasTexture {
   return texture;
 }
 
+/**
+ * Reticle for a move that has been *intended* rather than made: a broken ring
+ * of dashes with a hollow centre. Everything the board draws for a real move is
+ * solid and closed; leaving this one open is what says "not yet".
+ */
+export function premoveMarkerTexture(): THREE.CanvasTexture {
+  const size = 256;
+  const { canvas, ctx } = createCanvas(size);
+  const c = size / 2;
+  const radius = size * 0.36;
+
+  ctx.strokeStyle = "rgba(255,255,255,0.95)";
+  ctx.lineCap = "butt";
+  ctx.lineWidth = size * 0.03;
+  const dashes = 8;
+  const sweep = (Math.PI * 2) / dashes;
+  for (let i = 0; i < dashes; i += 1) {
+    const start = i * sweep;
+    ctx.beginPath();
+    ctx.arc(c, c, radius, start, start + sweep * 0.52);
+    ctx.stroke();
+  }
+
+  // A faint inner wash so the square still reads as claimed from a low camera,
+  // without the solid core dot a playable destination gets.
+  const core = ctx.createRadialGradient(c, c, 0, c, c, size * 0.3);
+  core.addColorStop(0, "rgba(255,255,255,0.22)");
+  core.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = core;
+  ctx.beginPath();
+  ctx.arc(c, c, size * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 /** Gold frame drawn under the piece the player has picked up. */
 export function selectMarkerTexture(): THREE.CanvasTexture {
   const size = 256;

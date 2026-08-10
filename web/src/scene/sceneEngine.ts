@@ -962,6 +962,14 @@ export class SceneEngine {
   private pointerDownAt: { x: number; y: number; square: SquareId | null } | null = null;
   private legalTargets = new Map<SquareId, boolean>();
   private previewing = false;
+  /**
+   * True while the current selection is aimed at a board that does not exist
+   * yet: the machine is still on the clock and the tap will queue a move rather
+   * than play one.
+   */
+  private premoving = false;
+  /** The two squares of the queued move, held so they can be re-lit. */
+  private premoveMarks: { from: SquareId; to: SquareId } | null = null;
 
   private lastFrameTime = 0;
   private elapsed = 0;
@@ -1152,6 +1160,8 @@ export class SceneEngine {
     this.controller.on("reset", () => this.rebuildPieces());
     this.controller.on("illegal", ({ from }) => this.rejectMove(from));
     this.controller.on("gameover", () => void this.playEndCinematic());
+    this.controller.on("premove", (premove) => this.onPremoveChanged(premove));
+    this.controller.on("premovefailed", ({ from, to }) => void this.flashPremoveLost(from, to));
     this.handleResize();
   }
 
@@ -1653,6 +1663,9 @@ export class SceneEngine {
 
     this.board.setHighlight(event.from, "last");
     this.board.setHighlight(event.to, "last");
+    // A move queued during this beat was wiped by the clear above; it is still
+    // waiting, so it goes back on the stone.
+    this.applyPremoveHighlight();
 
     if (event.isCheck) {
       audio.play("check", 0.55);
@@ -4413,8 +4426,14 @@ export class SceneEngine {
 
     const { square: hoveredSquare, piece } = this.pickTarget();
     const snapshot = this.controller.getSnapshot();
+    // Two ways a figure is touchable: it is your turn and the figure is yours,
+    // or the machine is still on the clock and the figure is yours to aim.
     const canTouch =
-      piece !== null && this.controller.isHumanTurn() && piece.color === snapshot.turn && snapshot.status === "playing";
+      piece !== null &&
+      snapshot.status === "playing" &&
+      (this.controller.isHumanTurn()
+        ? piece.color === snapshot.turn
+        : this.controller.canPremove() && piece.color === snapshot.playerColor);
 
     if (this.hoveredPiece && this.hoveredPiece !== piece) {
       this.hoveredPiece.setHovered(false);
@@ -4470,7 +4489,14 @@ export class SceneEngine {
     }
 
     const snapshot = this.controller.getSnapshot();
-    if (snapshot.status !== "playing" || !this.controller.isHumanTurn()) return;
+    if (snapshot.status !== "playing") return;
+
+    // The machine still holds the board: a tap aims a move at the position that
+    // is about to exist rather than at the one on the stone.
+    if (!this.controller.isHumanTurn()) {
+      if (this.controller.canPremove()) this.handlePremoveTap(square, piece, snapshot);
+      return;
+    }
 
     if (this.selected && square !== this.selected) {
       if (this.legalTargets.has(square)) {
@@ -4492,6 +4518,134 @@ export class SceneEngine {
 
     if (piece && piece.color === snapshot.turn) this.selectWithTap(square, piece);
   };
+
+  // ---------------------------------------------------------------- premoves
+
+  /** One tap inside the waiting window: pick a figure, aim it, or stand down. */
+  private handlePremoveTap(square: SquareId, piece: PieceView | null, snapshot: GameSnapshot): void {
+    const mine = piece !== null && piece.color === snapshot.playerColor;
+
+    if (this.premoving && this.selected) {
+      if (square === this.selected) {
+        this.clearSelection();
+        return;
+      }
+      if (this.legalTargets.has(square)) {
+        void this.queuePremove(this.selected, square);
+        return;
+      }
+      if (mine && piece) {
+        this.selectPremoveWithTap(square, piece);
+        return;
+      }
+      this.clearSelection();
+      return;
+    }
+
+    // Tapping the queued move's own figure takes the move back. It stays
+    // selectable straight afterwards, so re-aiming it is a second tap.
+    if (this.premoveMarks && square === this.premoveMarks.from) {
+      this.controller.clearPremove();
+      return;
+    }
+    if (mine && piece) this.selectPremoveWithTap(square, piece);
+    else this.controller.clearPremove();
+  }
+
+  /**
+   * Picking a figure for a queued move. The tap is the same gesture as a normal
+   * selection but deliberately quieter — this is a promise, not a placement.
+   */
+  private selectPremoveWithTap(square: SquareId, piece: PieceView): void {
+    this.selectPremove(square);
+    audio.woodTap({
+      pan: this.stereoPan(piece.container.position),
+      weight: WOOD_WEIGHT[piece.kind],
+      volume: 0.5,
+      lift: false,
+    });
+  }
+
+  /**
+   * Lights the squares a figure could ever step to, read off its geometry
+   * rather than off the position — see `GameController.premoveTargets`.
+   */
+  private selectPremove(square: SquareId): void {
+    this.previewing = false;
+    this.clearSelection();
+    const piece = this.pieces.get(square);
+    if (!piece) return;
+    this.selected = square;
+    this.premoving = true;
+    piece.setSelected(true);
+    this.board.setHighlight(square, "select");
+
+    const origin = squareToWorld(square);
+    const targets = this.controller
+      .premoveTargets(square)
+      .map((to) => ({ to, distance: squareToWorld(to).distanceTo(origin) }));
+    targets.sort((a, b) => a.distance - b.distance);
+    for (const target of targets) {
+      this.legalTargets.set(target.to, false);
+      this.board.setHighlight(target.to, "premove", false, Math.min(target.distance * 0.02, 0.14));
+    }
+    this.board.setShroud([square, ...targets.map((target) => target.to)], square);
+    if (targets.length > 0) audio.blip("hover");
+  }
+
+  /** Hands the aimed move to the controller, asking for a crown first if needed. */
+  private async queuePremove(from: SquareId, to: SquareId): Promise<void> {
+    let promotion: PieceKind | undefined;
+    if (this.controller.isPremovePromotion(from, to)) {
+      const color = this.controller.getSnapshot().playerColor;
+      this.clearSelection();
+      promotion = await this.requestPromotion(color);
+    }
+    if (!this.controller.setPremove(from, to, promotion)) {
+      // The window closed while the picker was open — the move is simply not
+      // queued; the turn has already come back and the board is live again.
+      this.clearSelection();
+      return;
+    }
+    const piece = this.pieces.get(from);
+    if (piece) {
+      audio.woodTap({
+        pan: this.stereoPan(piece.container.position),
+        weight: WOOD_WEIGHT[piece.kind],
+        volume: 0.42,
+        lift: false,
+      });
+    }
+  }
+
+  /** The controller's queue changed: repaint the two marks. */
+  private onPremoveChanged(premove: { from: SquareId; to: SquareId } | null): void {
+    this.premoveMarks = premove ? { from: premove.from, to: premove.to } : null;
+    this.clearSelection();
+  }
+
+  /** Lights the queued move, if there is one, on top of the ambient markers. */
+  private applyPremoveHighlight(): void {
+    this.board.setPremoveLink(this.premoveMarks);
+    if (!this.premoveMarks) return;
+    this.board.setHighlight(this.premoveMarks.from, "queued", true);
+    this.board.setHighlight(this.premoveMarks.to, "queued", true);
+  }
+
+  /**
+   * The reply left the queued move unplayable. One short red beat on both
+   * squares and it is gone — the player just watched the move that killed it,
+   * so there is nothing to explain and nothing to dismiss.
+   */
+  private async flashPremoveLost(from: SquareId, to: SquareId): Promise<void> {
+    this.premoveMarks = null;
+    audio.blip("deny");
+    this.board.setHighlight(from, "capture", true);
+    this.board.setHighlight(to, "capture", true);
+    await wait(0.55);
+    if (this.disposed) return;
+    this.restoreBaseHighlights();
+  }
 
   /** Selecting by tap: the figure stands to attention with a dry wooden tick. */
   private selectWithTap(square: SquareId, piece: PieceView): void {
@@ -4561,11 +4715,12 @@ export class SceneEngine {
     this.selected = null;
     this.legalTargets.clear();
     this.previewing = false;
+    this.premoving = false;
     this.board.setShroud(null);
     this.restoreBaseHighlights();
   }
 
-  /** Re-lights the ambient markers (last move, check) after a transient state. */
+  /** Re-lights the ambient markers (last move, check, queued move). */
   private restoreBaseHighlights(): void {
     this.board.clearHighlights();
     const snapshot = this.controller.getSnapshot();
@@ -4574,6 +4729,7 @@ export class SceneEngine {
       this.board.setHighlight(snapshot.lastMove.to, "last");
     }
     this.applyCheckHighlight(snapshot);
+    this.applyPremoveHighlight();
   }
 
   /**

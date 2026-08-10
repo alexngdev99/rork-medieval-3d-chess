@@ -94,6 +94,19 @@ export interface LedgerMove {
   mate: boolean;
 }
 
+/**
+ * A move queued while the opponent is still on the clock.
+ *
+ * The promotion piece is chosen when the move is *placed*, not when it runs —
+ * a picker that opened halfway through the engine's reply would defeat the
+ * whole point of queueing the move in the first place.
+ */
+export interface Premove {
+  from: SquareId;
+  to: SquareId;
+  promotion: PieceKind | null;
+}
+
 export interface GameSnapshot {
   status: GameStatus;
   mode: GameMode;
@@ -115,6 +128,8 @@ export interface GameSnapshot {
   /** Positive = white is ahead by that many pawns. */
   materialDiff: number;
   lastMove: { from: SquareId; to: SquareId } | null;
+  /** Move waiting to be played the moment the turn comes back. */
+  premove: Premove | null;
   clock: ClockState;
   /** Time spent per side, counted whether or not the chess clock is enabled. */
   elapsed: ElapsedState;

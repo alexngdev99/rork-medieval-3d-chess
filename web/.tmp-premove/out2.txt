@@ -1,0 +1,3 @@
+already-legal premoves offered: 111
+survived engine reply: 73.9%
+lost — piece captured 0.0%, king in check 18.0%, blocked/other 8.1%
