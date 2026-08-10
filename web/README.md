@@ -138,13 +138,37 @@ too rare to register in 111 samples. Three moves in four are worth the wait they
 - The queue is cleared by a new game, `stop()`, `undo()`, the end of the battle, and by switching
   the feature off.
 
-**On the stone.** Offered squares light in `premove` and the queued move's two squares in `queued` —
-cold pewter (`0x7d8ba3` / `0xa9bcdd`), deliberately outside the emerald/red/violet/azure palette
-every *played* move uses, at roughly half the glow. Both use `premoveMarkerTexture()`: a **broken**
-ring of dashes with a hollow centre, where every real move marker is solid and closed. An intention
-should not be able to be mistaken for the move happening in front of it. The figure itself never
-moves — it is marked, not relocated — and the placing tap is the same wooden tick as a selection at
-half the volume, with no lift.
+**On the stone.** The whole premove vocabulary is cold pewter, deliberately outside the
+emerald/red/violet/azure palette every *played* move uses, and every mark in it is **broken** where
+a real move marker is solid and closed. An intention should not be able to be mistaken for the move
+happening in front of it.
+
+Within that family the two ends of a queued move are dressed **differently**, because they are not
+equally worth reading:
+
+| | Kind | Colour | Marker | Spin |
+| --- | --- | --- | --- | --- |
+| Squares it could be aimed at | `premove` | `0x7d8ba3` | dashed ring, hollow | slow |
+| Where the move starts | `queued` | `0x8ea0bd` | dashed ring, hollow | slow |
+| **Where the move is aimed** | `queuedTarget` | `0xe6edff` | bracketed **border** + centre pip | none |
+
+The first version gave both ends the same ring, and the player had to read the *pair* to work out
+which way the move went — on a board that also carries the last move, a check and a selection, two
+identical lights are a puzzle, not an answer. The origin does not need the help: a figure is
+standing on it. The destination is bare stone, so it takes the strong end — near-white steel at
+full marker opacity against the origin's dimmed `0.6`, with the beam and the x-ray bleed-through
+turned up to match.
+
+`premoveTargetTexture()` is a **frame**, not a reticle: four hard corner brackets with short stubs
+along the edges and the middle of each side left open, plus a small filled pip dead centre. Against
+the origin's hollow ring that pip is the one-glance answer to *which end is the destination*. And it
+does not rotate — `MARKER_SPIN.queuedTarget` is `0`, because a border that turns stops reading as a
+border; it is the one mark on the board that must stay square to the tile it claims.
+
+The two are joined by `setPremoveLink()`, a thin additive thread pulled in at both ends so it starts
+and stops *inside* the marks rather than crossing them, breathing between `0.16` and `0.32` opacity.
+The figure itself never moves — it is marked, not relocated — and the placing tap is the same wooden
+tick as a selection at half the volume, with no lift.
 
 When the reply kills the move, both squares beat red once for 0.55 s with the deny blip and vanish.
 No dialog, nothing to dismiss: the player just watched the move that killed it.

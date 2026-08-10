@@ -4624,12 +4624,20 @@ export class SceneEngine {
     this.clearSelection();
   }
 
-  /** Lights the queued move, if there is one, on top of the ambient markers. */
+  /**
+   * Lights the queued move, if there is one, on top of the ambient markers.
+   *
+   * The two ends are deliberately *not* dressed alike. The origin already has a
+   * figure standing on it to explain itself; the destination is bare stone and
+   * is the half the player actually needs to read back, so it gets the bright
+   * bracketed border and the origin is left as a dim hollow ring. Same pewter
+   * family, one clearly the head of the arrow.
+   */
   private applyPremoveHighlight(): void {
     this.board.setPremoveLink(this.premoveMarks);
     if (!this.premoveMarks) return;
-    this.board.setHighlight(this.premoveMarks.from, "queued", true);
-    this.board.setHighlight(this.premoveMarks.to, "queued", true);
+    this.board.setHighlight(this.premoveMarks.from, "queued", false);
+    this.board.setHighlight(this.premoveMarks.to, "queuedTarget", true);
   }
 
   /**

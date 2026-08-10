@@ -11,6 +11,7 @@ import {
   marbleTexture,
   moveMarkerTexture,
   premoveMarkerTexture,
+  premoveTargetTexture,
   promoteMarkerTexture,
   landingRingTexture,
   radialTexture,
@@ -35,8 +36,10 @@ export type HighlightKind =
   | "hint"
   /** Square a queued move *could* be aimed at while the engine is thinking. */
   | "premove"
-  /** The two squares of the move that is actually queued. */
-  | "queued";
+  /** The square the queued move starts from. */
+  | "queued"
+  /** The square the queued move is aimed at — the one that must be readable. */
+  | "queuedTarget";
 
 const HIGHLIGHT_COLORS: Record<HighlightKind, number> = {
   select: 0xffc95e,
@@ -50,7 +53,10 @@ const HIGHLIGHT_COLORS: Record<HighlightKind, number> = {
   // Cold pewter, deliberately outside the palette every *played* move uses:
   // an intention has no business competing with the move on the board.
   premove: 0x7d8ba3,
-  queued: 0xa9bcdd,
+  queued: 0x8ea0bd,
+  // The destination is the half of a queued move worth reading, so it is the
+  // bright end of the pewter: near-white steel against the dim origin.
+  queuedTarget: 0xe6edff,
 };
 
 /** How dark an unreachable square goes while a piece is selected. */
@@ -67,7 +73,8 @@ const GLOW_OPACITY: Record<HighlightKind, number> = {
   check: 0.6,
   hint: 0.3,
   premove: 0.2,
-  queued: 0.34,
+  queued: 0.26,
+  queuedTarget: 0.5,
 };
 
 /** Base opacity of the crisp reticle drawn on top of the glow. */
@@ -81,7 +88,8 @@ const MARKER_OPACITY: Record<HighlightKind, number> = {
   check: 0.8,
   hint: 0.5,
   premove: 0.42,
-  queued: 0.8,
+  queued: 0.6,
+  queuedTarget: 1,
 };
 
 /** Base opacity of the vertical light column standing on the square. */
@@ -95,7 +103,8 @@ const BEAM_OPACITY: Record<HighlightKind, number> = {
   check: 0.3,
   hint: 0.12,
   premove: 0.08,
-  queued: 0.2,
+  queued: 0.12,
+  queuedTarget: 0.28,
 };
 
 /**
@@ -120,7 +129,8 @@ const XRAY_OPACITY: Record<HighlightKind, number> = {
   check: 0,
   hint: 0.26,
   premove: 0.2,
-  queued: 0.34,
+  queued: 0.26,
+  queuedTarget: 0.44,
 };
 
 /** Radians per second the reticle spins (capture locks turn the other way). */
@@ -135,6 +145,9 @@ const MARKER_SPIN: Record<HighlightKind, number> = {
   hint: 0.2,
   premove: 0.12,
   queued: 0.22,
+  // A border that rotates stops being a border. The destination frame is the
+  // one mark on the board that must stay square to the tile it claims.
+  queuedTarget: 0,
 };
 
 const POP_DURATION = 0.26;
@@ -249,6 +262,7 @@ export class BoardView {
     hint: null,
     premove: null,
     queued: null,
+    queuedTarget: null,
   };
   private hoverRing: THREE.Mesh;
   /** The thread drawn between the two squares of a queued move. */
@@ -355,7 +369,7 @@ export class BoardView {
     const material = this.track(
       new THREE.MeshBasicMaterial({
         map: this.track(radialTexture("rgba(255,255,255,0.85)", "rgba(255,255,255,0)")),
-        color: HIGHLIGHT_COLORS.queued,
+        color: HIGHLIGHT_COLORS.queuedTarget,
         transparent: true,
         opacity: 0,
         depthWrite: false,
@@ -461,6 +475,7 @@ export class BoardView {
       last: null,
       premove: this.track(premoveMarkerTexture()),
       queued: this.track(premoveMarkerTexture()),
+      queuedTarget: this.track(premoveTargetTexture()),
     };
 
     let index = 0;

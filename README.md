@@ -224,11 +224,19 @@ by the reply. The choice is remembered between visits.
   still legal after the computer replied; the rest died to a check (18.0%) or a blocked path
   (8.1%). Queue at random and it drops to ~33–40%.
 
-On the board a queued move is unmistakably *an intention*: cold pewter marks in a broken, dashed
-ring — outside the green/red/violet/azure palette every played move uses — joined by a thin thread
-that breathes. The figure never moves until the move does. Off switch in settings, on by default.
-The rules and the full measurements: [Queuing a move while the machine
-thinks](web/README.md#queuing-a-move-while-the-machine-thinks).
+On the board a queued move is unmistakably *an intention*: cold pewter, outside the
+green/red/violet/azure palette every played move uses, and broken where a real marker is solid.
+
+**The square you are aiming at gets its own mark.** The two ends are not dressed alike, because they
+are not equally worth reading: the starting square keeps a dim, hollow dashed ring — it has a figure
+standing on it to explain itself — while the **destination** is drawn as a bright near-white
+*border*, four hard corner brackets framing the tile with a small filled dot in the middle. It is
+the only mark on the board that does not turn, so it stays square to the ground it is claiming, and
+a thin thread breathes between the two so the whole move reads in one glance. The figure never moves
+until the move does.
+
+Off switch in settings, on by default. The rules and the full measurements: [Queuing a move while
+the machine thinks](web/README.md#queuing-a-move-while-the-machine-thinks).
 
 ## Interface
 

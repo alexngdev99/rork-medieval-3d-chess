@@ -471,6 +471,83 @@ export function premoveMarkerTexture(): THREE.CanvasTexture {
   return texture;
 }
 
+/**
+ * Reticle for the square a queued move is *aimed at*.
+ *
+ * The origin and the destination of a premove used to wear the same dashed
+ * ring, which left the player reading the pair to work out which way the move
+ * went. This one is a **border**, not a ring: a bracketed frame around the whole
+ * tile, so the destination reads as ground being claimed rather than as a
+ * second selected piece. It keeps the broken edges of the premove language —
+ * the sides are drawn as gaps, only the four corners are solid — so it still
+ * says "intended", never "played".
+ */
+export function premoveTargetTexture(): THREE.CanvasTexture {
+  const size = 256;
+  const { canvas, ctx } = createCanvas(size);
+  const inset = size * 0.13;
+  const span = size - inset * 2;
+  const arm = size * 0.16;
+
+  // Broken sides: a short stub either end of each edge, with the middle left
+  // open. Closing them would make this a solid frame, which is the vocabulary
+  // of a move that has actually happened.
+  ctx.strokeStyle = "rgba(255,255,255,0.55)";
+  ctx.lineWidth = size * 0.022;
+  ctx.lineCap = "butt";
+  const stub = span * 0.16;
+  const edges: [number, number, number, number][] = [
+    [inset, inset, 1, 0],
+    [inset + span, inset, 0, 1],
+    [inset + span, inset + span, -1, 0],
+    [inset, inset + span, 0, -1],
+  ];
+  for (const [x, y, dx, dy] of edges) {
+    ctx.beginPath();
+    ctx.moveTo(x + dx * arm, y + dy * arm);
+    ctx.lineTo(x + dx * (arm + stub), y + dy * (arm + stub));
+    ctx.stroke();
+  }
+
+  // Corner brackets carry the weight — four hard angles read as a frame from a
+  // low camera even when the sides are lost against the stone.
+  ctx.strokeStyle = "rgba(255,255,255,0.98)";
+  ctx.lineWidth = size * 0.05;
+  ctx.lineCap = "square";
+  const corners: [number, number, number, number][] = [
+    [inset, inset, 1, 1],
+    [inset + span, inset, -1, 1],
+    [inset, inset + span, 1, -1],
+    [inset + span, inset + span, -1, -1],
+  ];
+  for (const [x, y, sx, sy] of corners) {
+    ctx.beginPath();
+    ctx.moveTo(x + sx * arm, y);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x, y + sy * arm);
+    ctx.stroke();
+  }
+
+  // A small closed pip dead centre: the origin ring is hollow, so the filled
+  // centre is the one-glance answer to "which end is the destination".
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size * 0.045, 0, Math.PI * 2);
+  ctx.fill();
+
+  const halo = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size * 0.26);
+  halo.addColorStop(0, "rgba(255,255,255,0.3)");
+  halo.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size * 0.26, 0, Math.PI * 2);
+  ctx.fill();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 /** Gold frame drawn under the piece the player has picked up. */
 export function selectMarkerTexture(): THREE.CanvasTexture {
   const size = 256;
