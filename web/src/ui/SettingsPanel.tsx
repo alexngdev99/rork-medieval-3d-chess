@@ -17,6 +17,8 @@ export interface GameSettings {
   rotateBoard: boolean;
   /** Queue a move while the machine is still on the clock. */
   premoves: boolean;
+  /** How many moves may be stacked in the queue at once. */
+  premoveDepth: number;
   /** Floor on how long the computer's reply takes, in ms. */
   thinkFloorMs: number;
   /** Floating rank crests over every figure. */
@@ -61,6 +63,20 @@ const THINK_FLOORS: { ms: number; label: string }[] = [
   { ms: 1500, label: "1.5s" },
   { ms: 3000, label: "3s" },
   { ms: 6000, label: "6s" },
+];
+
+/**
+ * Queue depths offered to the player.
+ *
+ * Measured rather than picked: the head of a chain survives the machine's reply
+ * about six times in ten, and although every link after it survives *more*
+ * often, the odds on the whole chain still fall away — 30% at three deep, 20%
+ * at five. Three is the default; one is the old behaviour, five is for bullet.
+ */
+const PREMOVE_DEPTHS: { count: number; label: string; note: string }[] = [
+  { count: 1, label: "1 move", note: "one at a time" },
+  { count: 3, label: "3 moves", note: "3 in 10 chains run in full" },
+  { count: 5, label: "5 moves", note: "for bullet — 2 in 10 run in full" },
 ];
 
 const PRESETS: { key: QualityPreset; label: string; note: string }[] = [
@@ -170,12 +186,35 @@ export function SettingsPanel({
         />
         <Toggle
           label="Queue a move while the machine thinks"
-          note={`Against the computer — aim a figure during the wait and it plays the instant the turn returns. Tap the X over the square to take it back${
-            hasKeyboard ? ", or press Esc" : ""
+          note={`Against the computer — aim a figure during the wait and it plays the instant the turn returns. Tap the X over the last square to take one back${
+            hasKeyboard ? ", or press Esc to drop the lot" : ""
           }`}
           value={settings.premoves}
           onChange={(value) => onChange({ ...settings, premoves: value })}
         />
+        {settings.premoves ? (
+          <div className="py-3">
+            <p className="mc-display text-[0.78rem] text-[#efe0c0]">Moves you can stack</p>
+            <p className="mb-2 text-xs italic text-[#9c8b6c]">
+              Each one is aimed at the board the one before it leaves behind. If the head of the chain dies to the
+              machine&rsquo;s reply, the rest goes with it — it was planned for a position that never happened.
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {PREMOVE_DEPTHS.map((depth) => (
+                <button
+                  key={depth.count}
+                  type="button"
+                  className="mc-chip flex flex-col gap-0.5 py-2"
+                  data-active={settings.premoveDepth === depth.count}
+                  onClick={() => onChange({ ...settings, premoveDepth: depth.count })}
+                >
+                  <span>{depth.label}</span>
+                  <span className="text-[0.6rem] normal-case italic opacity-70">{depth.note}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className="py-3">
           <p className="mc-display text-[0.78rem] text-[#efe0c0]">Computer&rsquo;s thinking time</p>
           <p className="mb-2 text-xs italic text-[#9c8b6c]">

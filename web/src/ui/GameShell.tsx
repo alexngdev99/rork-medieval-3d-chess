@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 
 import { ARMY_SKINS, DEFAULT_ARMY_SKINS, type ArmySkinId } from "../assets/generated";
 import { audio } from "../audio/audioManager";
-import { DEFAULT_THINK_FLOOR_MS, GameController, THINK_FLOOR_CHOICES } from "../core/gameController";
+import {
+  DEFAULT_PREMOVE_DEPTH,
+  DEFAULT_THINK_FLOOR_MS,
+  GameController,
+  PREMOVE_DEPTH_CHOICES,
+  THINK_FLOOR_CHOICES,
+} from "../core/gameController";
 import type { Faction, LedgerMove, PieceKind } from "../core/types";
 import { Clapperboard } from "lucide-react";
 import { ARENA_LOOKS, DEFAULT_ARENA } from "../scene/arena";
@@ -31,6 +37,7 @@ const RENDER_PREFS_KEY = "kg.render";
 const ARMY_PREFS_KEY = "kg.armies";
 const TABLE_PREFS_KEY = "kg.table";
 const PREMOVE_PREFS_KEY = "kg.premove";
+const PREMOVE_DEPTH_KEY = "kg.premovedepth";
 const THINK_PREFS_KEY = "kg.think";
 
 interface RenderPrefs {
@@ -113,6 +120,34 @@ function savePremoves(enabled: boolean): void {
 }
 
 /**
+ * How many moves may be stacked in the queue at once.
+ *
+ * A taste, not a session setting: a bullet player who stacks five wants five
+ * every visit. Anything outside the offered depths is ignored rather than
+ * clamped — a stored value that is not one of the choices is a stale key, not a
+ * preference.
+ */
+function loadPremoveDepth(): number {
+  if (typeof window === "undefined") return DEFAULT_PREMOVE_DEPTH;
+  try {
+    const value = Number(window.localStorage.getItem(PREMOVE_DEPTH_KEY));
+    return PREMOVE_DEPTH_CHOICES.includes(value as (typeof PREMOVE_DEPTH_CHOICES)[number])
+      ? value
+      : DEFAULT_PREMOVE_DEPTH;
+  } catch {
+    return DEFAULT_PREMOVE_DEPTH;
+  }
+}
+
+function savePremoveDepth(depth: number): void {
+  try {
+    window.localStorage.setItem(PREMOVE_DEPTH_KEY, String(depth));
+  } catch {
+    // Private browsing — the choice just will not survive the reload.
+  }
+}
+
+/**
  * How long the computer is held before it answers, in ms.
  *
  * Remembered because it is a pacing taste, not a session setting: a player who
@@ -183,6 +218,7 @@ export function GameShell() {
   const initialArmies = useMemo<Record<Faction, ArmySkinId>>(() => loadArmyPrefs(), []);
   const initialSeatSwing = useMemo<boolean>(() => loadSeatSwing(), []);
   const initialPremoves = useMemo<boolean>(() => loadPremoves(), []);
+  const initialPremoveDepth = useMemo<number>(() => loadPremoveDepth(), []);
   const initialThinkFloor = useMemo<number>(() => loadThinkFloor(), []);
   /** Whether to print key hints at all — a phone has no `F` to press. */
   const hasKeyboard = useHasKeyboard();
@@ -193,6 +229,7 @@ export function GameShell() {
     captureCinematics: true,
     rotateBoard: initialSeatSwing,
     premoves: initialPremoves,
+    premoveDepth: initialPremoveDepth,
     thinkFloorMs: initialThinkFloor,
     rankBadges: true,
     muted: false,
@@ -320,6 +357,7 @@ export function GameShell() {
     engine.setCaptureCinematics(settings.captureCinematics);
     engine.setRotateBoard(settings.rotateBoard);
     controller.setPremovesEnabled(settings.premoves);
+    controller.setPremoveDepth(settings.premoveDepth);
     controller.setThinkFloorMs(settings.thinkFloorMs);
     engine.setRankBadges(settings.rankBadges);
     engine.setSafeMode(settings.safeMode);
@@ -329,6 +367,7 @@ export function GameShell() {
     saveArmyPrefs(settings.skins);
     saveSeatSwing(settings.rotateBoard);
     savePremoves(settings.premoves);
+    savePremoveDepth(settings.premoveDepth);
     saveThinkFloor(settings.thinkFloorMs);
   }, [settings, phase, controller]);
 
@@ -520,7 +559,8 @@ export function GameShell() {
       if (event.key === "Escape") {
         setShowSettings(false);
         // Same key, two jobs, in the order the player expects: a panel first,
-        // then the move they have queued on the board behind it.
+        // then the whole chain queued on the board behind it. Esc is the bin;
+        // the X over the last square is the one-step undo.
         if (!showSettings) controller.clearPremove();
       }
       const target = event.target as HTMLElement | null;

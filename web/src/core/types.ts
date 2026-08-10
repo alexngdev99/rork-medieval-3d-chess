@@ -128,8 +128,8 @@ export interface GameSnapshot {
   /** Positive = white is ahead by that many pawns. */
   materialDiff: number;
   lastMove: { from: SquareId; to: SquareId } | null;
-  /** Move waiting to be played the moment the turn comes back. */
-  premove: Premove | null;
+  /** Moves waiting to be played, oldest first — the first one runs next. */
+  premoves: Premove[];
   clock: ClockState;
   /** Time spent per side, counted whether or not the chess clock is enabled. */
   elapsed: ElapsedState;

@@ -203,6 +203,16 @@ So against the computer you can now aim your next move during the wait. Tap your
 square; the move is *held*, not played, and it goes the moment the turn comes back — costing you
 almost nothing on the clock.
 
+**And you can stack up to five of them.** One queued move fills one wait; in bullet you already know
+your next three. Each one is aimed at the board the one before it leaves behind — queue a knight to
+`f3` and the next move is picked up **from `f3`**, even though the wood is still standing on `g1`.
+The default is three, and that is a measured number, not a taste: across 241 five-deep chains played
+out against Knight, the first move survives the computer's reply 59.6% of the time, and every move
+after it survives *more* often (69.9%, 72.2%, 90.9%, 72.0%) — once the first one lives, the game is
+going the way you planned. What falls away is the whole chain: 41.7% run two deep, 30.1% three,
+19.7% all five. Of everything queued, 35.5% actually got played, or **1.53 moves per chain**. Past
+three, you are queueing far more than you play, so five is offered but not the default.
+
 **And you can set how long the computer waits.** Settings has *Computer's thinking time*: instant,
 0.4 s, 1.5 s, 3 s or 6 s. It is a floor on the reply, never a cap on the search — a position that
 honestly takes Warlord three seconds still takes three seconds, and no setting makes the engine
@@ -214,9 +224,11 @@ by the reply. The choice is remembered between visits.
   pawn standing in it, a pawn gets both diagonals whether or not there is anything to take, and the
   king is offered its two castling squares. The move is aimed at a position that does not exist
   yet, and the piece in the way may be the very thing that moves.
-- **One move at a time.** Aiming a second one replaces the first. Take it back with the little **X**
-  hanging over the destination square, `Esc`, a tap off the board, or a tap on the queued figure
-  itself.
+- **Three ways to take it back, and they say three different things.** The little **X** floating
+  over the last square removes **that one move**; tapping a queued move's own starting square
+  removes **it and everything after it**; `Esc` or a tap off the board drops **the whole chain**.
+- **If the first move dies, the chain dies with it.** Everything behind it was planned for a board
+  that will now never happen, so it is dropped rather than played on blind.
 - **The crown is chosen up front.** A queued pawn push to the last rank opens the usual picker
   *there and then*, so nothing interrupts the move when it runs.
 - **If the reply killed it, it is dropped** — never played blind. Both squares beat red once and
@@ -228,21 +240,23 @@ by the reply. The choice is remembered between visits.
 On the board a queued move is unmistakably *an intention*: cold pewter, outside the
 green/red/violet/azure palette every played move uses, and broken where a real marker is solid.
 
-**The square you are aiming at gets its own mark.** The two ends are not dressed alike, because they
-are not equally worth reading: the starting square keeps a dim, hollow dashed ring — it has a figure
-standing on it to explain itself — while the **destination** is drawn as a bright near-white
-*border*, four hard corner brackets framing the tile with a small filled dot in the middle. It is
-the only mark on the board that does not turn, so it stays square to the ground it is claiming, and
-a thin thread breathes between the two so the whole move reads in one glance. The figure never moves
-until the move does.
+**A chain is drawn as one arrow, not a pile of them.** Every square the plan passes through keeps a
+dim, hollow dashed ring, and only the square it *finishes* on gets the bright near-white border —
+four hard corner brackets framing the tile with a small filled dot in the middle. It is the only
+mark on the board that does not turn, so it stays square to the ground it is claiming. Thin threads
+breathe from link to link so the whole plan reads in one glance. The figures never move until the
+moves do.
 
-**And there is a button to take it back.** A small dark coin with a struck cross floats just above
-the square you aimed at, bobbing gently so it reads as a control rather than another mark on the
-stone. Tap it and the queued move is gone. It always faces you as the camera swings, it is drawn in
-front of everything — including the figure standing in the way — and it warms to ember under the
-pointer, because it is the button that destroys something. It only exists while a move is waiting.
-Cancelling was always possible with `Esc` or a stray tap; none of that was visible, and on a phone
-half of it was not even reachable.
+**And there is a button to take a move back.** A small dark coin with a struck cross floats just
+above the last square of the chain, bobbing gently so it reads as a control rather than another mark
+on the stone. Tap it and the last queued move is gone, and the coin hops back to the new end of the
+chain — it is an undo, not a bin. It always faces you as the camera swings, it is drawn in front of
+everything — including the figure standing in the way — and it warms to ember under the pointer,
+because it is the button that destroys something. Cancelling was always possible with `Esc` or a
+stray tap; none of that was visible, and on a phone half of it was not even reachable.
+
+Settings has *Moves you can stack* — one, three or five — right under the on/off switch, and
+remembers it between visits.
 
 Off switch in settings, on by default. The rules and the full measurements: [Queuing a move while
 the machine thinks](web/README.md#queuing-a-move-while-the-machine-thinks).

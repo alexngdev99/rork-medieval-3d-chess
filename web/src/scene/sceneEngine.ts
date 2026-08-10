@@ -968,8 +968,8 @@ export class SceneEngine {
    * than play one.
    */
   private premoving = false;
-  /** The two squares of the queued move, held so they can be re-lit. */
-  private premoveMarks: { from: SquareId; to: SquareId } | null = null;
+  /** The queued chain, oldest link first, held so it can be re-lit. */
+  private premoveChain: { from: SquareId; to: SquareId }[] = [];
   /** Pointer is resting on the queued move's dismiss coin. */
   private premoveCancelHovered = false;
 
@@ -1162,8 +1162,8 @@ export class SceneEngine {
     this.controller.on("reset", () => this.rebuildPieces());
     this.controller.on("illegal", ({ from }) => this.rejectMove(from));
     this.controller.on("gameover", () => void this.playEndCinematic());
-    this.controller.on("premove", (premove) => this.onPremoveChanged(premove));
-    this.controller.on("premovefailed", ({ from, to }) => void this.flashPremoveLost(from, to));
+    this.controller.on("premove", (premoves) => this.onPremoveChanged(premoves));
+    this.controller.on("premovefailed", ({ from, to, dropped }) => void this.flashPremoveLost(from, to, dropped));
     this.handleResize();
   }
 
@@ -4506,12 +4506,13 @@ export class SceneEngine {
 
     this.updatePointer(event);
 
-    // Tapping the coin takes the queued move back, whatever else is under it.
+    // Tapping the coin takes the last queued move back, whatever else is under
+    // it. One link at a time: it is the chain's undo, not its bin.
     if (this.premoveCancelUnderPointer()) {
       this.premoveCancelHovered = false;
       this.board.setPremoveCancelHot(false);
       audio.blip("deny");
-      this.controller.clearPremove();
+      this.controller.popPremove();
       return;
     }
 
@@ -4555,9 +4556,17 @@ export class SceneEngine {
 
   // ---------------------------------------------------------------- premoves
 
-  /** One tap inside the waiting window: pick a figure, aim it, or stand down. */
+  /**
+   * One tap inside the waiting window: pick a figure, aim it, or stand down.
+   *
+   * Everything here is read off the *projected* board rather than off the
+   * stone. Once a link is queued its figure is, as far as the plan is
+   * concerned, already on the far square — so that is where the next link is
+   * picked up from, even though the wood has not moved.
+   */
   private handlePremoveTap(square: SquareId, piece: PieceView | null, snapshot: GameSnapshot): void {
-    const mine = piece !== null && piece.color === snapshot.playerColor;
+    const projected = this.controller.premovePieceAt(square);
+    const mine = projected !== null && projected.color === snapshot.playerColor;
 
     if (this.premoving && this.selected) {
       if (square === this.selected) {
@@ -4568,7 +4577,7 @@ export class SceneEngine {
         void this.queuePremove(this.selected, square);
         return;
       }
-      if (mine && piece) {
+      if (mine) {
         this.selectPremoveWithTap(square, piece);
         return;
       }
@@ -4576,13 +4585,14 @@ export class SceneEngine {
       return;
     }
 
-    // Tapping the queued move's own figure takes the move back. It stays
-    // selectable straight afterwards, so re-aiming it is a second tap.
-    if (this.premoveMarks && square === this.premoveMarks.from) {
-      this.controller.clearPremove();
+    // Tapping a link's starting square takes that link back — and with it every
+    // link behind it, which was aimed at a board that will now never happen.
+    const index = this.controller.premoveIndexFrom(square);
+    if (index >= 0) {
+      this.controller.truncatePremoves(index);
       return;
     }
-    if (mine && piece) this.selectPremoveWithTap(square, piece);
+    if (mine) this.selectPremoveWithTap(square, piece);
     else this.controller.clearPremove();
   }
 
@@ -4590,11 +4600,15 @@ export class SceneEngine {
    * Picking a figure for a queued move. The tap is the same gesture as a normal
    * selection but deliberately quieter — this is a promise, not a placement.
    */
-  private selectPremoveWithTap(square: SquareId, piece: PieceView): void {
+  private selectPremoveWithTap(square: SquareId, piece: PieceView | null): void {
     this.selectPremove(square);
+    const projected = this.controller.premovePieceAt(square);
+    if (!projected) return;
     audio.woodTap({
-      pan: this.stereoPan(piece.container.position),
-      weight: WOOD_WEIGHT[piece.kind],
+      // A figure picked up further down the chain has no wood on that square
+      // yet, so the tap is panned by where the plan puts it.
+      pan: this.stereoPan(piece ? piece.container.position : squareToWorld(square)),
+      weight: WOOD_WEIGHT[projected.kind],
       volume: 0.5,
       lift: false,
     });
@@ -4607,11 +4621,12 @@ export class SceneEngine {
   private selectPremove(square: SquareId): void {
     this.previewing = false;
     this.clearSelection();
-    const piece = this.pieces.get(square);
-    if (!piece) return;
+    if (!this.controller.premovePieceAt(square)) return;
     this.selected = square;
     this.premoving = true;
-    piece.setSelected(true);
+    // Deeper in the chain the square is bare stone: the figure is still standing
+    // where it started, so only the square can be lit.
+    this.pieces.get(square)?.setSelected(true);
     this.board.setHighlight(square, "select");
 
     const origin = squareToWorld(square);
@@ -4629,6 +4644,7 @@ export class SceneEngine {
 
   /** Hands the aimed move to the controller, asking for a crown first if needed. */
   private async queuePremove(from: SquareId, to: SquareId): Promise<void> {
+    const projected = this.controller.premovePieceAt(from);
     let promotion: PieceKind | undefined;
     if (this.controller.isPremovePromotion(from, to)) {
       const color = this.controller.getSnapshot().playerColor;
@@ -4636,20 +4652,21 @@ export class SceneEngine {
       promotion = await this.requestPromotion(color);
     }
     if (!this.controller.setPremove(from, to, promotion)) {
-      // The window closed while the picker was open — the move is simply not
-      // queued; the turn has already come back and the board is live again.
+      // Either the window closed while the picker was open, or the queue is
+      // already as deep as it is allowed to be. Both end the same way: nothing
+      // is queued, and the deny blip says the tap was heard, not swallowed.
+      audio.blip("deny");
       this.clearSelection();
       return;
     }
+    if (!projected) return;
     const piece = this.pieces.get(from);
-    if (piece) {
-      audio.woodTap({
-        pan: this.stereoPan(piece.container.position),
-        weight: WOOD_WEIGHT[piece.kind],
-        volume: 0.42,
-        lift: false,
-      });
-    }
+    audio.woodTap({
+      pan: this.stereoPan(piece ? piece.container.position : squareToWorld(from)),
+      weight: WOOD_WEIGHT[projected.kind],
+      volume: 0.42,
+      lift: false,
+    });
   }
 
   /** Is the pointer on the dismiss coin of a queued move? */
@@ -4659,10 +4676,10 @@ export class SceneEngine {
     return this.raycaster.intersectObject(handle, false).length > 0;
   }
 
-  /** The controller's queue changed: repaint the two marks. */
-  private onPremoveChanged(premove: { from: SquareId; to: SquareId } | null): void {
-    this.premoveMarks = premove ? { from: premove.from, to: premove.to } : null;
-    if (!premove) {
+  /** The controller's queue changed: repaint the chain. */
+  private onPremoveChanged(premoves: { from: SquareId; to: SquareId }[]): void {
+    this.premoveChain = premoves.map((move) => ({ from: move.from, to: move.to }));
+    if (premoves.length === 0) {
       this.premoveCancelHovered = false;
       this.board.setPremoveCancelHot(false);
     }
@@ -4679,13 +4696,19 @@ export class SceneEngine {
    * family, one clearly the head of the arrow.
    */
   private applyPremoveHighlight(): void {
-    this.board.setPremoveLink(this.premoveMarks);
-    // The dismiss coin only makes sense while the move is still waiting: once
-    // the turn is back the queue is empty and there is nothing to take back.
-    this.board.setPremoveCancel(this.premoveMarks ? this.premoveMarks.to : null);
-    if (!this.premoveMarks) return;
-    this.board.setHighlight(this.premoveMarks.from, "queued", false);
-    this.board.setHighlight(this.premoveMarks.to, "queuedTarget", true);
+    this.board.setPremoveLinks(this.premoveChain);
+    const last = this.premoveChain.length > 0 ? this.premoveChain[this.premoveChain.length - 1] : null;
+    // The dismiss coin only makes sense while a move is still waiting, and it
+    // hangs over the *end* of the chain because that is the link it takes back.
+    this.board.setPremoveCancel(last ? last.to : null);
+    if (!last) return;
+    // A chain is one arrow, not a pile of them: every waypoint keeps the dim
+    // hollow ring and only the square the plan finishes on gets the bright head.
+    for (const link of this.premoveChain) {
+      this.board.setHighlight(link.from, "queued", false);
+      if (link !== last) this.board.setHighlight(link.to, "queued", false);
+    }
+    this.board.setHighlight(last.to, "queuedTarget", true);
   }
 
   /**
@@ -4693,9 +4716,11 @@ export class SceneEngine {
    * squares and it is gone — the player just watched the move that killed it,
    * so there is nothing to explain and nothing to dismiss.
    */
-  private async flashPremoveLost(from: SquareId, to: SquareId): Promise<void> {
-    this.premoveMarks = null;
+  private async flashPremoveLost(from: SquareId, to: SquareId, dropped: number): Promise<void> {
+    this.premoveChain = [];
     this.board.setPremoveCancel(null);
+    // A whole plan going down deserves more than the same beat as one move.
+    if (dropped > 1) this.shake.tremor(0.09, 0.4);
     this.premoveCancelHovered = false;
     audio.blip("deny");
     this.board.setHighlight(from, "capture", true);

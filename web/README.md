@@ -123,18 +123,54 @@ placed — the sensible ones — survival is **73.9%**, and the 26% that die are
 *king in check* (18.0%) and *path blocked* (8.1%), with the queued piece being captured outright
 too rare to register in 111 samples. Three moves in four are worth the wait they save.
 
+**One move was not enough for bullet.** A single queued move fills one wait; a blitz player already
+knows their next three. So the queue is a **chain** now — up to five links, three by default — and
+the depth was measured before it was chosen.
+
+241 chains, five deep, against the medium engine, each link aimed at the board the links before it
+leave behind (the same way a player builds one), then played out for real with the engine replying
+between every link:
+
+| Link | Survives its reply | Whole chain alive this deep |
+| --- | --- | --- |
+| 1 | 59.6% (235 attempts) | 59.6% |
+| 2 | 69.9% (123) | 41.7% |
+| 3 | 72.2% (79) | 30.1% |
+| 4 | 90.9% (55) | 27.3% |
+| 5 | 72.0% (50) | 19.7% |
+
+The shape is the interesting part, and it is the opposite of the intuition that made us cap it at
+one: **the deeper links survive more often than the head**, because by the time link 3 is due the
+reply has already agreed with the plan twice. What decays is the *chain*, not the link. Of 1039
+links queued, 369 were actually played — **1.53 moves per chain**, and 35.5% of everything queued.
+At three deep the tail still pays for itself; past it, links are queued far more often than played,
+which is why five is offered but not the default. Deaths split 75 *piece gone* / 73 *king in check*
+/ 25 *path blocked*.
+
 **The rules, all of them in `GameController`:**
 
 - The window is `canPremove()` — mode `ai`, game running, and `!isHumanTurn()`. That deliberately
   covers both halves of the wait: the search *and* the move animation, which is the half the
-  timings above do not show.
-- **One move is held.** A second `setPremove()` replaces the first; that is the whole gesture for
-  changing your mind.
+  timings above do not show. `canQueueMore()` adds "and the chain is not full".
+- **Every link is aimed at a board that does not exist.** `projectedBoard()` replays the queue onto
+  a plain square map — pointedly *not* chess.js, which would refuse moves that are illegal today —
+  and `premoveTargets()`, `isPremovePromotion()` and `setPremove()` all read from it. Queue a knight
+  to `f3` and the next link is picked up **from `f3`**, while the wood is still standing on `g1`.
+  The map carries the castling rook along with the king, so a queued castle leaves the rook where
+  the plan puts it.
 - The crown for a queued promotion is chosen **when the move is placed**, not when it runs — a
   picker opening halfway through the engine's reply would defeat the point of queueing.
 - `consumePremove()` runs from `commit()`, the moment the board is handed back, before
-  `maybeRunEngine()`. Legal → played like any other move. Not legal → dropped, and `premovefailed`
-  is emitted so the board can say so.
+  `maybeRunEngine()`. It takes **one** link: legal → played like any other move; not legal → the
+  whole chain is dropped and `premovefailed` carries `dropped`, the number of links that went with
+  it. Playing on would mean playing a plan against a position it was never drawn for.
+- It is called again at the end of *every* move, including a queued one that just ran. When the
+  machine is back on the clock it returns early and the rest of the chain simply keeps waiting —
+  the queue is not something the engine's turn is allowed to eat.
+- Depth lives in `setPremoveDepth()` (1–5). Shortening it truncates the queue on the spot rather
+  than letting the tail run.
+- Taking back: `popPremove()` drops the last link, `truncatePremoves(n)` keeps the first `n` (used
+  by tapping a link's own starting square), `clearPremove()` drops the lot.
 - The queue is cleared by a new game, `stop()`, `undo()`, the end of the battle, and by switching
   the feature off.
 
@@ -143,14 +179,14 @@ emerald/red/violet/azure palette every *played* move uses, and every mark in it 
 a real move marker is solid and closed. An intention should not be able to be mistaken for the move
 happening in front of it.
 
-Within that family the two ends of a queued move are dressed **differently**, because they are not
+Within that family the ends of a queued move are dressed **differently**, because they are not
 equally worth reading:
 
 | | Kind | Colour | Marker | Spin |
 | --- | --- | --- | --- | --- |
 | Squares it could be aimed at | `premove` | `0x7d8ba3` | dashed ring, hollow | slow |
-| Where the move starts | `queued` | `0x8ea0bd` | dashed ring, hollow | slow |
-| **Where the move is aimed** | `queuedTarget` | `0xe6edff` | bracketed **border** + centre pip | none |
+| Every square the chain passes through | `queued` | `0x8ea0bd` | dashed ring, hollow | slow |
+| **Where the chain finishes** | `queuedTarget` | `0xe6edff` | bracketed **border** + centre pip | none |
 
 The first version gave both ends the same ring, and the player had to read the *pair* to work out
 which way the move went — on a board that also carries the last move, a check and a selection, two
@@ -165,16 +201,26 @@ the origin's hollow ring that pip is the one-glance answer to *which end is the 
 does not rotate — `MARKER_SPIN.queuedTarget` is `0`, because a border that turns stops reading as a
 border; it is the one mark on the board that must stay square to the tile it claims.
 
-The two are joined by `setPremoveLink()`, a thin additive thread pulled in at both ends so it starts
-and stops *inside* the marks rather than crossing them, breathing between `0.16` and `0.32` opacity.
-The figure itself never moves — it is marked, not relocated — and the placing tap is the same wooden
-tick as a selection at half the volume, with no lift.
+A chain is drawn as **one arrow, not a pile of them**: every waypoint — origins and the destinations
+of all but the last link — keeps the dim hollow ring, and only the square the plan finishes on gets
+the bright head. Five bright frames would be five competing answers to "where is this going?".
+
+The links are joined by `setPremoveLinks()`, thin additive threads pulled in at both ends so each
+starts and stops *inside* the marks rather than crossing them, breathing together between `0.16` and
+`0.32` opacity. One mesh per possible link is built up front (`MAX_PREMOVE_LINKS = 5`), so a chain
+growing mid-wait allocates nothing.
+
+The figures themselves never move — they are marked, not relocated — and the placing tap is the same
+wooden tick as a selection at half the volume, with no lift. Deeper in the chain the square the tap
+lands on is bare stone, so the tick is panned by where the *plan* puts the piece and weighted by the
+projected piece's kind; the selection glow goes on the square alone, because there is no wood there
+to light.
 
 **Taking it back had no button.** Four gestures already cancelled a queued move — tap the figure,
 tap the destination, `Esc`, or simply queue another — and not one of them was written anywhere the
 player could see it. On a phone two of the four (a key, and a hover-free "tap the mark you can
-barely tell apart") are worth nothing. So the queued move now carries its own dismiss control:
-`premoveCancelTexture()`, a small struck-cross coin hanging `0.62` above the destination tile.
+barely tell apart") are worth nothing. So the queue carries its own dismiss control:
+`premoveCancelTexture()`, a small struck-cross coin hanging `0.62` above the **last** link's tile.
 
 - It is a **sprite**, so it faces the player from any orbit angle, and it is drawn with
   `depthTest: false` at `renderOrder = 12`. A cancel button hidden behind the figure standing in
@@ -192,14 +238,22 @@ barely tell apart") are worth nothing. So the queued move now carries its own di
   while a panel is up, since it too punches through them.
 
 It appears and disappears with the queue itself (`setPremoveCancel()` from `applyPremoveHighlight()`),
-so it is never on screen when there is nothing to take back.
+so it is never on screen when there is nothing to take back — and it is the chain's **undo**, not its
+bin: one tap pops one link, and it hops back to the new end of the chain. `Esc` is the bin.
 
-When the reply kills the move, both squares beat red once for 0.55 s with the deny blip and vanish,
-and the coin goes with them. No dialog, nothing to dismiss: the player just watched the move that
-killed it.
+The three cancel gestures now say three different things, which is the whole reason the chain is
+usable: the coin pops the **last** link, tapping a link's own starting square drops **that link and
+everything behind it** (they were aimed at a board that will now never happen), and `Esc` or a tap
+off the board drops **all of it**.
 
-Off switch in settings (*Queue a move while the machine thinks*), on by default, remembered in
-`kg.premove`. Rules are covered by `src/core/premove.test.ts`.
+When the reply kills the head of a chain, its two squares beat red once for 0.55 s with the deny
+blip and the rest vanishes with it; if more than one link went down, a short `tremor(0.09, 0.4)` is
+added, because a whole plan collapsing deserves more than the same beat as one move. No dialog: the
+player just watched the move that killed it.
+
+Settings carries the off switch (*Queue a move while the machine thinks*, on by default, remembered
+in `kg.premove`) and, under it, *Moves you can stack* — 1 / 3 / 5, remembered in `kg.premovedepth`,
+hidden entirely while queueing is off. Rules are covered by `src/core/premove.test.ts` (14 tests).
 
 ### Clicking a square behind a figure
 

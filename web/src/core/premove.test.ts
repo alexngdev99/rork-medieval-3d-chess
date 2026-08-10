@@ -61,6 +61,18 @@ function startAiGame(script: string[]): GameController {
 }
 
 describe("premove targets", () => {
+  it("reads the second link off the board the first one leaves behind", async () => {
+    const controller = startAiGame(["e5"]);
+    await controller.tryMove("e2", "e4");
+    controller.setPremove("g1", "f3");
+    // The knight is still standing on g1 on the stone, but the plan has it on
+    // f3, so that is the square the next link is aimed from.
+    expect(controller.premoveTargets("g1")).toEqual([]);
+    expect(controller.premoveTargets("f3")).toContain("g5");
+    expect(controller.premovePieceAt("f3")).toEqual({ kind: "n", color: "w" });
+    controller.dispose();
+  });
+
   it("offers squares behind a blocker, because the blocker may move away", () => {
     const controller = startAiGame([]);
     const targets = controller.premoveTargets("a1");
@@ -103,17 +115,17 @@ describe("premove queue", () => {
     await controller.tryMove("e2", "e4");
     expect(controller.canPremove()).toBe(true);
     expect(controller.setPremove("g1", "f3")).toBe(true);
-    expect(controller.getSnapshot().premove).toEqual<Premove>({ from: "g1", to: "f3", promotion: null });
+    expect(controller.getSnapshot().premoves).toEqual<Premove[]>([{ from: "g1", to: "f3", promotion: null }]);
 
     await waitFor(() => controller.getSnapshot().sanList.length >= 3);
     expect(controller.getSnapshot().sanList).toEqual(["e4", "e5", "Nf3"]);
-    expect(controller.getSnapshot().premove).toBeNull();
+    expect(controller.getSnapshot().premoves).toEqual([]);
     controller.dispose();
   });
 
   it("drops a queued move the reply made illegal, and says so", async () => {
     const controller = startAiGame(["e5"]);
-    const failures: { from: string; to: string }[] = [];
+    const failures: { from: string; to: string; dropped: number }[] = [];
     controller.on("premovefailed", (event) => failures.push(event));
 
     await controller.tryMove("e2", "e4");
@@ -121,16 +133,16 @@ describe("premove queue", () => {
     expect(controller.setPremove("e4", "e5")).toBe(true);
 
     await waitFor(() => failures.length > 0);
-    expect(failures[0]).toEqual({ from: "e4", to: "e5" });
+    expect(failures[0]).toEqual({ from: "e4", to: "e5", dropped: 1 });
     expect(controller.getSnapshot().sanList).toEqual(["e4", "e5"]);
-    expect(controller.getSnapshot().premove).toBeNull();
+    expect(controller.getSnapshot().premoves).toEqual([]);
     expect(controller.isHumanTurn()).toBe(true);
     controller.dispose();
   });
 
   it("drops a queued move whose piece was captured", async () => {
     const controller = startAiGame(["d5", "Qxd5"]);
-    const failures: { from: string; to: string }[] = [];
+    const failures: { from: string; to: string; dropped: number }[] = [];
     controller.on("premovefailed", (event) => failures.push(event));
 
     await controller.tryMove("e2", "e4");
@@ -139,20 +151,66 @@ describe("premove queue", () => {
     expect(controller.setPremove("d5", "d6")).toBe(true);
 
     await waitFor(() => failures.length > 0);
-    expect(failures[0]).toEqual({ from: "d5", to: "d6" });
+    expect(failures[0]).toEqual({ from: "d5", to: "d6", dropped: 1 });
     expect(controller.getSnapshot().sanList).toEqual(["e4", "d5", "exd5", "Qxd5"]);
     controller.dispose();
   });
 
-  it("keeps only the last move queued", async () => {
+  it("stacks moves and plays them one per turn", async () => {
+    const controller = startAiGame(["e5", "d6"]);
+    await controller.tryMove("e2", "e4");
+    expect(controller.setPremove("g1", "f3")).toBe(true);
+    // Aimed from f3, where the knight is not standing yet: the second link is
+    // read off the board the first one leaves behind.
+    expect(controller.setPremove("f3", "g5")).toBe(true);
+    expect(controller.getSnapshot().premoves).toHaveLength(2);
+
+    await waitFor(() => controller.getSnapshot().sanList.length >= 5);
+    expect(controller.getSnapshot().sanList).toEqual(["e4", "e5", "Nf3", "d6", "Ng5"]);
+    expect(controller.getSnapshot().premoves).toEqual([]);
+    controller.dispose();
+  });
+
+  it("refuses to stack deeper than the chosen depth", async () => {
+    const controller = startAiGame(["e5"]);
+    controller.setPremoveDepth(1);
+    await controller.tryMove("e2", "e4");
+    expect(controller.setPremove("g1", "f3")).toBe(true);
+    expect(controller.setPremove("b1", "c3")).toBe(false);
+    expect(controller.getSnapshot().premoves).toEqual<Premove[]>([{ from: "g1", to: "f3", promotion: null }]);
+    controller.dispose();
+  });
+
+  it("takes the chain back one link at a time, and all of it at once", async () => {
     const controller = startAiGame(["e5"]);
     await controller.tryMove("e2", "e4");
     controller.setPremove("g1", "f3");
-    controller.setPremove("b1", "c3");
-    expect(controller.getSnapshot().premove).toEqual<Premove>({ from: "b1", to: "c3", promotion: null });
+    controller.setPremove("f3", "g5");
+    expect(controller.popPremove()).toBe(true);
+    expect(controller.getSnapshot().premoves).toEqual<Premove[]>([{ from: "g1", to: "f3", promotion: null }]);
 
-    await waitFor(() => controller.getSnapshot().sanList.length >= 3);
-    expect(controller.getSnapshot().sanList).toEqual(["e4", "e5", "Nc3"]);
+    controller.setPremove("f3", "g5");
+    // Tapping the first link's own square drops it and everything behind it.
+    expect(controller.premoveIndexFrom("g1")).toBe(0);
+    expect(controller.truncatePremoves(0)).toBe(true);
+    expect(controller.getSnapshot().premoves).toEqual([]);
+    controller.dispose();
+  });
+
+  it("drops the whole chain when its head cannot be played", async () => {
+    const controller = startAiGame(["e5"]);
+    const failures: { from: string; to: string; dropped: number }[] = [];
+    controller.on("premovefailed", (event) => failures.push(event));
+
+    await controller.tryMove("e2", "e4");
+    expect(controller.setPremove("e4", "e5")).toBe(true);
+    expect(controller.setPremove("e5", "e6")).toBe(true);
+
+    await waitFor(() => failures.length > 0);
+    // Everything behind the head was aimed at a board that never happened.
+    expect(failures[0]).toEqual({ from: "e4", to: "e5", dropped: 2 });
+    expect(controller.getSnapshot().premoves).toEqual([]);
+    expect(controller.getSnapshot().sanList).toEqual(["e4", "e5"]);
     controller.dispose();
   });
 
@@ -161,7 +219,7 @@ describe("premove queue", () => {
     await controller.tryMove("e2", "e4");
     controller.setPremove("g1", "f3");
     controller.setPremovesEnabled(false);
-    expect(controller.getSnapshot().premove).toBeNull();
+    expect(controller.getSnapshot().premoves).toEqual([]);
     expect(controller.canPremove()).toBe(false);
 
     await waitFor(() => controller.isHumanTurn());
@@ -174,7 +232,7 @@ describe("premove queue", () => {
     await controller.tryMove("e2", "e4");
     controller.setPremove("g1", "f3");
     controller.start({ mode: "ai", difficulty: "easy", playerColor: "w", clockMinutes: null });
-    expect(controller.getSnapshot().premove).toBeNull();
+    expect(controller.getSnapshot().premoves).toEqual([]);
     controller.dispose();
   });
 });

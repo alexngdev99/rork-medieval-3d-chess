@@ -153,6 +153,9 @@ const MARKER_SPIN: Record<HighlightKind, number> = {
 
 const POP_DURATION = 0.26;
 
+/** Deepest queue the game allows, and so how many threads to keep ready. */
+const MAX_PREMOVE_LINKS = 5;
+
 /** How high above the destination tile the dismiss coin floats. */
 const CANCEL_LIFT = 0.62;
 /** World size of the coin sprite, transparent hit margin included. */
@@ -275,8 +278,8 @@ export class BoardView {
     queuedTarget: null,
   };
   private hoverRing: THREE.Mesh;
-  /** The thread drawn between the two squares of a queued move. */
-  private premoveLink!: THREE.Mesh;
+  /** Threads drawn along each link of the queued chain. */
+  private premoveLinks: THREE.Mesh[] = [];
   private premoveLinkMaterial!: THREE.MeshBasicMaterial;
   /** The dismiss coin hanging over a queued move's destination. */
   private premoveCancel!: THREE.Sprite;
@@ -377,9 +380,12 @@ export class BoardView {
   }
 
   /**
-   * The thread between the two squares of a queued move. Two marks alone read
-   * as two unrelated lights on a busy board; the line is what makes them one
-   * move at a glance, and it breathes so it is never mistaken for a played one.
+   * The threads between the squares of a queued chain. Marks alone read as
+   * unrelated lights on a busy board; the lines are what make them one *plan*
+   * at a glance, and they breathe so they are never mistaken for played moves.
+   *
+   * One mesh per possible link, built up front and shown as needed: the deepest
+   * queue the game allows is five, so there is nothing to allocate mid-game.
    */
   private buildPremoveLink(): void {
     const geometry = this.track(new THREE.PlaneGeometry(1, 1));
@@ -395,11 +401,14 @@ export class BoardView {
       }),
     );
     this.premoveLinkMaterial = material;
-    this.premoveLink = new THREE.Mesh(geometry, material);
-    this.premoveLink.position.y = BOARD_TOP + 0.018;
-    this.premoveLink.visible = false;
-    this.premoveLink.renderOrder = 4;
-    this.group.add(this.premoveLink);
+    for (let index = 0; index < MAX_PREMOVE_LINKS; index += 1) {
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.y = BOARD_TOP + 0.018;
+      mesh.visible = false;
+      mesh.renderOrder = 4;
+      this.premoveLinks.push(mesh);
+      this.group.add(mesh);
+    }
   }
 
   /**
@@ -457,28 +466,32 @@ export class BoardView {
     return this.premoveCancel.visible && this.premoveCancelSquare ? this.premoveCancel : null;
   }
 
-  /** Lays the thread between a queued move's squares, or takes it away. */
-  setPremoveLink(move: { from: SquareId; to: SquareId } | null): void {
-    if (!move) {
-      this.premoveLink.visible = false;
-      this.premoveLinkMaterial.opacity = 0;
-      return;
+  /** Lays a thread along every link of the queued chain, or takes them away. */
+  setPremoveLinks(moves: { from: SquareId; to: SquareId }[]): void {
+    if (moves.length === 0) this.premoveLinkMaterial.opacity = 0;
+    for (let index = 0; index < this.premoveLinks.length; index += 1) {
+      const mesh = this.premoveLinks[index];
+      const move = moves[index];
+      if (!move) {
+        mesh.visible = false;
+        continue;
+      }
+      const from = squareToWorld(move.from, BOARD_TOP);
+      const to = squareToWorld(move.to, BOARD_TOP);
+      const dx = to.x - from.x;
+      const dz = to.z - from.z;
+      const length = Math.hypot(dx, dz);
+      if (length < 0.001) {
+        mesh.visible = false;
+        continue;
+      }
+      mesh.position.set((from.x + to.x) / 2, BOARD_TOP + 0.018, (from.z + to.z) / 2);
+      mesh.rotation.y = Math.atan2(-dz, dx);
+      // Pulled in at both ends so the thread starts and stops inside the two
+      // reticles rather than crossing them.
+      mesh.scale.set(Math.max(0.2, length - TILE * 0.5), 1, TILE * 0.22);
+      mesh.visible = true;
     }
-    const from = squareToWorld(move.from, BOARD_TOP);
-    const to = squareToWorld(move.to, BOARD_TOP);
-    const dx = to.x - from.x;
-    const dz = to.z - from.z;
-    const length = Math.hypot(dx, dz);
-    if (length < 0.001) {
-      this.premoveLink.visible = false;
-      return;
-    }
-    this.premoveLink.position.set((from.x + to.x) / 2, BOARD_TOP + 0.018, (from.z + to.z) / 2);
-    this.premoveLink.rotation.y = Math.atan2(-dz, dx);
-    // Pulled in at both ends so the thread starts and stops inside the two
-    // reticles rather than crossing them.
-    this.premoveLink.scale.set(Math.max(0.2, length - TILE * 0.5), 1, TILE * 0.22);
-    this.premoveLink.visible = true;
   }
 
   private track<T extends { dispose: () => void }>(item: T): T {
@@ -963,7 +976,7 @@ export class BoardView {
   clearHighlights(kinds?: HighlightKind[]): void {
     if (!kinds) {
       this.setShroud(null);
-      this.setPremoveLink(null);
+      this.setPremoveLinks([]);
       this.setPremoveCancel(null);
     }
     for (const slot of this.slots.values()) {
@@ -1065,7 +1078,7 @@ export class BoardView {
     this.elapsed += delta;
     this.updateImpacts(delta);
     this.updateShroud(delta);
-    if (this.premoveLink.visible) {
+    if (this.premoveLinks[0].visible) {
       const wave = (Math.sin(this.elapsed * 2.2) + 1) * 0.5;
       this.premoveLinkMaterial.opacity = 0.16 + wave * 0.16;
     }
