@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 
 import { ARMY_SKINS, DEFAULT_ARMY_SKINS, type ArmySkinId } from "../assets/generated";
 import { audio } from "../audio/audioManager";
-import { GameController } from "../core/gameController";
+import { DEFAULT_THINK_FLOOR_MS, GameController, THINK_FLOOR_CHOICES } from "../core/gameController";
 import type { Faction, LedgerMove, PieceKind } from "../core/types";
 import { Clapperboard } from "lucide-react";
 import { ARENA_LOOKS, DEFAULT_ARENA } from "../scene/arena";
@@ -31,6 +31,7 @@ const RENDER_PREFS_KEY = "kg.render";
 const ARMY_PREFS_KEY = "kg.armies";
 const TABLE_PREFS_KEY = "kg.table";
 const PREMOVE_PREFS_KEY = "kg.premove";
+const THINK_PREFS_KEY = "kg.think";
 
 interface RenderPrefs {
   safeMode: boolean;
@@ -112,6 +113,35 @@ function savePremoves(enabled: boolean): void {
 }
 
 /**
+ * How long the computer is held before it answers, in ms.
+ *
+ * Remembered because it is a pacing taste, not a session setting: a player who
+ * wants the machine to take its time (to think, or to aim a queued move in)
+ * wants that on every visit, not once.
+ */
+function loadThinkFloor(): number {
+  if (typeof window === "undefined") return DEFAULT_THINK_FLOOR_MS;
+  try {
+    const raw = window.localStorage.getItem(THINK_PREFS_KEY);
+    if (raw === null) return DEFAULT_THINK_FLOOR_MS;
+    const value = Number(raw);
+    return THINK_FLOOR_CHOICES.includes(value as (typeof THINK_FLOOR_CHOICES)[number])
+      ? value
+      : DEFAULT_THINK_FLOOR_MS;
+  } catch {
+    return DEFAULT_THINK_FLOOR_MS;
+  }
+}
+
+function saveThinkFloor(ms: number): void {
+  try {
+    window.localStorage.setItem(THINK_PREFS_KEY, String(ms));
+  } catch {
+    // Private browsing — the choice just will not survive the reload.
+  }
+}
+
+/**
  * Safe rendering and brightness are remembered across visits, and `?safe=1`
  * forces them on — a player whose driver blacks the hall out must not have to
  * find the toggle again on every reload.
@@ -153,6 +183,7 @@ export function GameShell() {
   const initialArmies = useMemo<Record<Faction, ArmySkinId>>(() => loadArmyPrefs(), []);
   const initialSeatSwing = useMemo<boolean>(() => loadSeatSwing(), []);
   const initialPremoves = useMemo<boolean>(() => loadPremoves(), []);
+  const initialThinkFloor = useMemo<number>(() => loadThinkFloor(), []);
   /** Whether to print key hints at all — a phone has no `F` to press. */
   const hasKeyboard = useHasKeyboard();
   const [settings, setSettings] = useState<GameSettings>(() => ({
@@ -162,6 +193,7 @@ export function GameShell() {
     captureCinematics: true,
     rotateBoard: initialSeatSwing,
     premoves: initialPremoves,
+    thinkFloorMs: initialThinkFloor,
     rankBadges: true,
     muted: false,
     safeMode: initialRender.safeMode,
@@ -288,6 +320,7 @@ export function GameShell() {
     engine.setCaptureCinematics(settings.captureCinematics);
     engine.setRotateBoard(settings.rotateBoard);
     controller.setPremovesEnabled(settings.premoves);
+    controller.setThinkFloorMs(settings.thinkFloorMs);
     engine.setRankBadges(settings.rankBadges);
     engine.setSafeMode(settings.safeMode);
     engine.setBrightness(settings.brightness);
@@ -296,6 +329,7 @@ export function GameShell() {
     saveArmyPrefs(settings.skins);
     saveSeatSwing(settings.rotateBoard);
     savePremoves(settings.premoves);
+    saveThinkFloor(settings.thinkFloorMs);
   }, [settings, phase, controller]);
 
   // ------------------------------------------------------------- attract mode

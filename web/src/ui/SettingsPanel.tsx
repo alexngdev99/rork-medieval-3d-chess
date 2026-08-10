@@ -17,6 +17,8 @@ export interface GameSettings {
   rotateBoard: boolean;
   /** Queue a move while the machine is still on the clock. */
   premoves: boolean;
+  /** Floor on how long the computer's reply takes, in ms. */
+  thinkFloorMs: number;
   /** Floating rank crests over every figure. */
   rankBadges: boolean;
   muted: boolean;
@@ -45,6 +47,21 @@ interface SettingsPanelProps {
   onChange: (settings: GameSettings) => void;
   onClose: () => void;
 }
+
+/**
+ * Reply floors offered to the player, in ms.
+ *
+ * Not a difficulty dial — it changes how long the machine *waits*, never how
+ * hard it thinks. Long floors exist because they are the only way to rehearse a
+ * queued move on easy, where the search is over in 7ms.
+ */
+const THINK_FLOORS: { ms: number; label: string }[] = [
+  { ms: 0, label: "Instant" },
+  { ms: 420, label: "0.4s" },
+  { ms: 1500, label: "1.5s" },
+  { ms: 3000, label: "3s" },
+  { ms: 6000, label: "6s" },
+];
 
 const PRESETS: { key: QualityPreset; label: string; note: string }[] = [
   { key: "low", label: "Low", note: "No post-processing, no shadows — runs anywhere" },
@@ -159,6 +176,26 @@ export function SettingsPanel({
           value={settings.premoves}
           onChange={(value) => onChange({ ...settings, premoves: value })}
         />
+        <div className="py-3">
+          <p className="mc-display text-[0.78rem] text-[#efe0c0]">Computer&rsquo;s thinking time</p>
+          <p className="mb-2 text-xs italic text-[#9c8b6c]">
+            A floor, never a cap — the search already takes about 0.6s as Knight and 3.1s as Warlord. Raise it to widen
+            the window a move can be queued in; Squire answers in 7ms, so there the floor <em>is</em> the wait.
+          </p>
+          <div className="grid grid-cols-5 gap-2">
+            {THINK_FLOORS.map((floor) => (
+              <button
+                key={floor.ms}
+                type="button"
+                className="mc-chip py-2"
+                data-active={settings.thinkFloorMs === floor.ms}
+                onClick={() => onChange({ ...settings, thinkFloorMs: floor.ms })}
+              >
+                {floor.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <Toggle
           label="Rank crests above pieces"
           note="Floating shield and sun-disc badges naming every figure"

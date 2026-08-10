@@ -149,7 +149,7 @@ Cloudflare Pages or any static host. No environment variables are required to ru
 | What a button does | Hover or focus it (tap it on touch) — every icon carries a tooltip |
 | Skip the intro | Click anywhere during the opening sweep |
 | Queue a move | While the computer is thinking, tap your figure then its square — the move plays itself the moment the turn returns, see [Queuing a move while the machine thinks](#queuing-a-move-while-the-machine-thinks) |
-| Settings | Gear icon — armies, battleground, graphics preset, capture cinematics, board swing, queued moves, sound |
+| Settings | Gear icon — armies, battleground, graphics preset, capture cinematics, board swing, queued moves, thinking time, sound |
 
 There is no drag-and-drop: a press that travels more than 8px (16px for a finger — a tap on
 glass always drifts) is read as a camera swing, so orbiting from a figure never moves it.
@@ -202,6 +202,13 @@ clock running.
 So against the computer you can now aim your next move during the wait. Tap your figure, tap its
 square; the move is *held*, not played, and it goes the moment the turn comes back — costing you
 almost nothing on the clock.
+
+**And you can set how long the computer waits.** Settings has *Computer's thinking time*: instant,
+0.4 s, 1.5 s, 3 s or 6 s. It is a floor on the reply, never a cap on the search — a position that
+honestly takes Warlord three seconds still takes three seconds, and no setting makes the engine
+play weaker. Squire answers in 7 ms, so on that level the floor *is* the entire wait: put it on 6 s
+and every part of queuing a move is comfortable to try out, from aiming to watching one get killed
+by the reply. The choice is remembered between visits.
 
 - **The squares offered are geometric, not legal.** A rook is offered its whole file even with a
   pawn standing in it, a pawn gets both diagonals whether or not there is anything to take, and the

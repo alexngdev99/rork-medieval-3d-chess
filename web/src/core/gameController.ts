@@ -62,6 +62,18 @@ interface ControllerEvents {
 
 const CLOCK_TICK_MS = 100;
 
+/**
+ * Floor on how long a reply against the computer takes, in ms.
+ *
+ * The search itself averages 7ms on easy, so without a floor the machine would
+ * answer before the player's hand had left the board — which reads as a bug,
+ * not as strength. 420ms is the smallest wait that still feels like a decision.
+ */
+export const DEFAULT_THINK_FLOOR_MS = 420;
+
+/** Floors offered in settings, longest first in the interface. */
+export const THINK_FLOOR_CHOICES = [0, DEFAULT_THINK_FLOOR_MS, 1500, 3000, 6000] as const;
+
 const FILES = "abcdefgh";
 
 /** Ray directions per sliding piece, as (file, rank) steps. */
@@ -155,6 +167,8 @@ export class GameController extends Emitter<ControllerEvents> {
   /** Move the player queued while the engine was on the clock. */
   private premove: Premove | null = null;
   private premovesEnabled = true;
+  /** Minimum wall time an engine reply is held for, in ms. */
+  private thinkFloorMs: number = DEFAULT_THINK_FLOOR_MS;
   private snapshot: GameSnapshot = this.buildSnapshot();
 
   /** The renderer registers an async animator; moves wait for it to finish. */
@@ -253,6 +267,22 @@ export class GameController extends Emitter<ControllerEvents> {
     if (this.premovesEnabled === enabled) return;
     this.premovesEnabled = enabled;
     if (!enabled) this.clearPremove();
+  }
+
+  /**
+   * Sets the floor on the computer's reply, in ms.
+   *
+   * A floor, never a cap: a search that genuinely takes three seconds still
+   * takes three seconds. Raising it widens the window a premove can be aimed
+   * in, which is the only honest way to rehearse the feature on easy, where the
+   * search is over in 7ms.
+   */
+  setThinkFloorMs(ms: number): void {
+    this.thinkFloorMs = Math.min(15000, Math.max(0, Math.round(ms)));
+  }
+
+  getThinkFloorMs(): number {
+    return this.thinkFloorMs;
   }
 
   getPremove(): Premove | null {
@@ -696,7 +726,7 @@ export class GameController extends Emitter<ControllerEvents> {
     // A tiny floor on think time keeps instant replies from feeling robotic;
     // the showcase lingers longer so captures and camera work land on camera.
     const elapsed = performance.now() - started;
-    const base = mode === "attract" ? 900 : demo ? 1150 : 420;
+    const base = mode === "attract" ? 900 : demo ? 1150 : this.thinkFloorMs;
     const floor = demo ? clamp(base / demo.speed, 120, 6000) : base;
     if (elapsed < floor) await wait(floor - elapsed);
     if (generation !== this.generation || this.status !== "playing") {
