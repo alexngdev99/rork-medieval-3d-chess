@@ -14,6 +14,7 @@ import {
   premoveMarkerTexture,
   premoveOrderTexture,
   premoveTargetTexture,
+  premoveThreadTexture,
   promoteMarkerTexture,
   landingRingTexture,
   radialTexture,
@@ -177,6 +178,15 @@ const ORDER_SIZE = 0.34;
 /** The pewter the whole premove language is painted in. */
 const ORDER_TINT = new THREE.Color(0xe6edff);
 
+/**
+ * The two ends of a thread's colour ramp. The link that runs *next* burns in
+ * near-white steel; the ones behind it cool toward the dim pewter of an origin
+ * ring, so the chain reads in order along its own lines and not just off the
+ * numerals.
+ */
+const THREAD_HEAD = new THREE.Color(0xe6edff);
+const THREAD_TAIL = new THREE.Color(0x7f90ad);
+
 /** Overshooting ease so squares snap into place with a little punch. */
 function easeOutBack(t: number): number {
   const c = 1.9;
@@ -292,7 +302,8 @@ export class BoardView {
   private hoverRing: THREE.Mesh;
   /** Threads drawn along each link of the queued chain. */
   private premoveLinks: THREE.Mesh[] = [];
-  private premoveLinkMaterial!: THREE.MeshBasicMaterial;
+  /** One material per link: each thread carries its own place in the chain. */
+  private premoveLinkMaterials: THREE.MeshBasicMaterial[] = [];
   /** The dismiss coin hanging over a queued move's destination. */
   private premoveCancel!: THREE.Sprite;
   private premoveCancelMaterial!: THREE.SpriteMaterial;
@@ -464,22 +475,27 @@ export class BoardView {
    *
    * One mesh per possible link, built up front and shown as needed: the deepest
    * queue the game allows is five, so there is nothing to allocate mid-game.
+   * Each link gets its **own** material, because a thread has to carry two
+   * things a shared one could not: which way it runs (the gradient map, whose
+   * local +x always points at the destination) and how far down the chain it
+   * sits (its tint).
    */
   private buildPremoveLink(): void {
     const geometry = this.track(new THREE.PlaneGeometry(1, 1));
     geometry.rotateX(-Math.PI / 2);
-    const material = this.track(
-      new THREE.MeshBasicMaterial({
-        map: this.track(radialTexture("rgba(255,255,255,0.85)", "rgba(255,255,255,0)")),
-        color: HIGHLIGHT_COLORS.queuedTarget,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      }),
-    );
-    this.premoveLinkMaterial = material;
+    const map = this.track(premoveThreadTexture());
     for (let index = 0; index < MAX_PREMOVE_LINKS; index += 1) {
+      const material = this.track(
+        new THREE.MeshBasicMaterial({
+          map,
+          color: THREAD_HEAD.clone(),
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        }),
+      );
+      this.premoveLinkMaterials.push(material);
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.y = BOARD_TOP + 0.018;
       mesh.visible = false;
@@ -544,16 +560,27 @@ export class BoardView {
     return this.premoveCancel.visible && this.premoveCancelSquare ? this.premoveCancel : null;
   }
 
-  /** Lays a thread along every link of the queued chain, or takes them away. */
+  /**
+   * Lays a thread along every link of the queued chain, or takes them away.
+   *
+   * The mesh's local +x is the direction of travel — `atan2(-dz, dx)` aims it
+   * from the origin at the destination — and the gradient map is painted along
+   * that same axis, so the comet always burns *into* the square the plan is
+   * entering without any per-link texture work.
+   */
   setPremoveLinks(moves: { from: SquareId; to: SquareId }[]): void {
-    if (moves.length === 0) this.premoveLinkMaterial.opacity = 0;
     for (let index = 0; index < this.premoveLinks.length; index += 1) {
       const mesh = this.premoveLinks[index];
       const move = moves[index];
       if (!move) {
         mesh.visible = false;
+        this.premoveLinkMaterials[index].opacity = 0;
         continue;
       }
+      // The link that runs next is steel; the ones behind it cool toward the
+      // pewter of an origin ring, so the chain reads in order along its lines.
+      const depth = moves.length > 1 ? index / (moves.length - 1) : 0;
+      this.premoveLinkMaterials[index].color.copy(THREAD_HEAD).lerp(THREAD_TAIL, depth * 0.85);
       const from = squareToWorld(move.from, BOARD_TOP);
       const to = squareToWorld(move.to, BOARD_TOP);
       const dx = to.x - from.x;
@@ -561,6 +588,7 @@ export class BoardView {
       const length = Math.hypot(dx, dz);
       if (length < 0.001) {
         mesh.visible = false;
+        this.premoveLinkMaterials[index].opacity = 0;
         continue;
       }
       mesh.position.set((from.x + to.x) / 2, BOARD_TOP + 0.018, (from.z + to.z) / 2);
@@ -1179,7 +1207,11 @@ export class BoardView {
     this.updateShroud(delta);
     if (this.premoveLinks[0].visible) {
       const wave = (Math.sin(this.elapsed * 2.2) + 1) * 0.5;
-      this.premoveLinkMaterial.opacity = 0.16 + wave * 0.16;
+      const opacity = 0.16 + wave * 0.16;
+      for (let index = 0; index < this.premoveLinks.length; index += 1) {
+        if (!this.premoveLinks[index].visible) continue;
+        this.premoveLinkMaterials[index].opacity = opacity;
+      }
     }
     this.updatePremoveCancel(delta);
     this.updatePremoveOrders(delta);

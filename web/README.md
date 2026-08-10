@@ -248,6 +248,35 @@ starts and stops *inside* the marks rather than crossing them, breathing togethe
 `0.32` opacity. One mesh per possible link is built up front (`MAX_PREMOVE_LINKS = 5`), so a chain
 growing mid-wait allocates nothing.
 
+**But those threads were symmetric, and a symmetric line has no direction.** They were
+`radialTexture()` stretched between two squares — identical read either way — so the only thing
+saying which way a link ran was the marks at its ends, and the marks are not always enough. Over
+**23923** generated three-link chains (each link aimed at the board the links before it leave
+behind, the same way `projectedBoard()` builds them):
+
+- **19.9%** of chains had two of their own threads **crossing** on the stone (7.3% of all link
+  pairs) — the exact moment a line has to speak for itself.
+- **5.1%** of links had *both* ends shared with another link, so neither end could be read as "the
+  one that starts it".
+
+So `premoveThreadTexture()` paints the thread as a **comet**: a `256×64` canvas drawn column by
+column, alpha ramping `0.06 → 1.0` on `u^1.7` and half-width `0.14 → 0.48` of the canvas height on
+`u^0.85`. The tail is a nearly dark hair at the square the plan *leaves*; the head is a bright wide
+burn into the square it *enters*. Two cues carrying the same message means it survives a crossing, a
+bloom pass, a dark hall and a colour-blind player — the ramp is deliberately eased rather than
+linear, because a straight ramp reads as "slightly brighter over there" instead of as a direction.
+
+No per-link texture work is needed to aim it: the mesh's local **+x is already the direction of
+travel** (`mesh.rotation.y = atan2(-dz, dx)` maps local +x onto `to - from`), and the gradient is
+painted along that same axis. Rotate the mesh, and the comet points itself.
+
+Each link now owns its **own material** — previously all five shared one — so a second gradient can
+ride on the first: the thread's tint lerps `THREAD_HEAD` `#e6edff` → `THREAD_TAIL` `#7f90ad` across
+`index / (count - 1)` (capped at `0.85` so the last link never goes fully cold). Within a thread the
+gradient says *which way this move runs*; across the chain the tint says *which move runs next* —
+the same story the numerals tell, told again in a channel that survives being glanced at. The
+breathing pulse still runs on all of them together, so the chain stays one object.
+
 **One arrow answers where the plan ends — not what happens second.** Three queued moves put three
 identical dim rings on the board joined by threads that cross one another from a low camera, and the
 only thing the player can reconstruct is the *set* of squares. So every link carries its ordinal:

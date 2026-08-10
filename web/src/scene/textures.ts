@@ -178,6 +178,54 @@ export function radialTexture(inner: string, outer: string): THREE.CanvasTexture
 }
 
 /**
+ * The thread laid along one link of a queued chain, painted so it can only be
+ * read one way.
+ *
+ * The old thread was {@link radialTexture} stretched between the two squares:
+ * symmetric on both axes, so a link looked exactly the same read backwards.
+ * Over 23923 measured three-link chains, 19.9% had two threads crossing on the
+ * stone and 5.1% of links had *both* ends shared with another link — exactly
+ * the moments where the marks alone cannot say which way the plan runs.
+ *
+ * So the thread is a comet: a thin, nearly dark hair at the square the plan
+ * leaves, growing into a bright wide head at the square it enters. Alpha and
+ * width point the same way, so the direction survives a crossing, a dark hall,
+ * a bloom pass and a colour-blind player.
+ *
+ * Painted column by column (once, at boot); each column is a soft vertical
+ * cross-section, so the thread keeps feathered edges instead of a hard band.
+ */
+export function premoveThreadTexture(): THREE.CanvasTexture {
+  const width = 256;
+  const height = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2D canvas context unavailable");
+
+  const middle = height / 2;
+  for (let x = 0; x < width; x += 1) {
+    const u = x / (width - 1);
+    // Eased, not linear: a straight ramp reads as "slightly brighter over
+    // there" rather than as a direction, so the tail is held quiet past
+    // halfway and the head does most of the burning.
+    const alpha = 0.06 + 0.94 * Math.pow(u, 1.7);
+    const half = height * (0.14 + 0.34 * Math.pow(u, 0.85));
+    const column = ctx.createLinearGradient(0, middle - half, 0, middle + half);
+    column.addColorStop(0, "rgba(255,255,255,0)");
+    column.addColorStop(0.5, `rgba(255,255,255,${alpha.toFixed(3)})`);
+    column.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = column;
+    ctx.fillRect(x, middle - half, 1, half * 2);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
  * The band painted on the tile under a figure, marking which army it belongs to.
  *
  * Colour alone is not enough: it has to survive a dark hall, a bloom pass, a

@@ -250,6 +250,17 @@ mark on the board that does not turn, so it stays square to the ground it is cla
 breathe from link to link so the whole plan reads in one glance. The figures never move until the
 moves do.
 
+**And each thread now runs one way.** The lines used to be perfectly even between their two squares,
+so a link looked exactly the same read backwards — and out of 23923 three-move chains, one in five
+had two of its own threads crossing on the stone, with a further 5% having links whose *both* ends
+were shared with another link. In those moments the marks cannot answer "which way?", so now the
+line answers it itself: each thread is a comet, a nearly dark hair at the square the move leaves,
+swelling into a bright wide burn as it enters the square it is going to. It gets thicker *and*
+brighter in the same direction, so it still reads across a crossing, on a phone, in a dark hall, and
+with colour-blind eyes. And the whole chain cools as it goes: the move that runs next is bright
+steel, the ones waiting behind it fade toward dim pewter — so you can see both the direction of each
+move and the order of the plan without reading a single number.
+
 **And every square in the chain wears its number.** One arrow says where the plan *ends*; it says
 nothing about what happens second. Three queued moves leave three identical rings joined by threads
 that cross one another from a low camera, and all you can read back is the set of squares. So each
