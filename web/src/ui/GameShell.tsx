@@ -352,6 +352,9 @@ export function GameShell() {
     engine.setQuality(settings.quality);
     if (phase !== "playing") {
       engine.setArena(settings.arena);
+      // The map brings its own music; the mixer crossfades to it, and remembers
+      // the choice if the player has not made a sound yet.
+      audio.setArena(settings.arena);
       engine.setArmySkins(settings.skins);
     }
     engine.setCaptureCinematics(settings.captureCinematics);

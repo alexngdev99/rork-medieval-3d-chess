@@ -1,8 +1,21 @@
-import { ARMY_SKINS, AUDIO_URLS, DEFAULT_ARMY_SKINS, GUN_AUDIO_URLS, type GunVoice } from "../assets/generated";
+import {
+  ARENA_SCORES,
+  ARMY_SKINS,
+  AUDIO_URLS,
+  DEFAULT_ARMY_SKINS,
+  GUN_AUDIO_URLS,
+  type GunVoice,
+} from "../assets/generated";
+import type { ArenaTheme } from "../scene/arena";
+import { DEFAULT_ARENA } from "../scene/arena";
 import type { Faction, PieceKind } from "../core/types";
 
 type SfxName = "place" | "capture" | "check" | "fanfare";
-type BedName = "ambience" | "score" | "tension";
+/**
+ * The beds that belong to the game rather than to a battleground. The score is
+ * not one of them any more — every map brings its own (see {@link ScoreVoice}).
+ */
+type BedName = "ambience" | "tension";
 
 /** How a figure's dying voice is placed in the mix. */
 export interface DeathCryOptions {
@@ -268,14 +281,73 @@ interface Bed {
 
 const BED_VOLUME: Record<BedName, number> = {
   ambience: 0.32,
-  score: 0.34,
   tension: 0.0,
 };
 
+/** Where the score bus sits with a calm board. */
+const SCORE_VOLUME = 0.34;
+
 /**
- * Web Audio mixer: three looping beds (ambience / score / tension stem) that
- * crossfade with game intensity, plus one-shot SFX. UI blips are synthesised so
- * every hover does not cost a network asset.
+ * Loudness every battleground's score is levelled to, in LUFS — the measured
+ * loudness of the original dusk track, because that is the one the rest of the
+ * mix (knocks, cries, bells, gunfire) was balanced underneath. See
+ * {@link ARENA_SCORES} for the measurements.
+ */
+const SCORE_TARGET_LOUDNESS = -18.5;
+
+/**
+ * Bounds on that correction. The quietest generation came back 14.9 LU under
+ * target, and an unbounded fix would happily boost a hissy take into noise.
+ */
+const SCORE_GAIN_RANGE: readonly [number, number] = [0.35, 6];
+
+/** Crossfade where a score's loop window meets itself. */
+const SCORE_LOOP_FADE = 1.2;
+
+/** Crossfade when the battleground changes under a live mixer. */
+const SCORE_SWAP_FADE = 2.6;
+
+/** Points on the equal-power fade curves. */
+const FADE_STEPS = 48;
+
+/**
+ * Equal-power (sine/cosine) fade curves. A linear crossfade is correct for two
+ * copies of the *same* signal; the two sides of a loop seam are unrelated
+ * material, and summing them linearly dips about 3 dB in the middle — audible as
+ * a small hole every time the track comes round.
+ */
+const FADE_IN_CURVE = new Float32Array(FADE_STEPS);
+const FADE_OUT_CURVE = new Float32Array(FADE_STEPS);
+for (let index = 0; index < FADE_STEPS; index += 1) {
+  const phase = (index / (FADE_STEPS - 1)) * (Math.PI / 2);
+  FADE_IN_CURVE[index] = Math.sin(phase);
+  FADE_OUT_CURVE[index] = Math.cos(phase);
+}
+
+/**
+ * One battleground's score, playing. A voice owns its own gain (so two maps can
+ * cross over each other during a swap) and re-schedules itself pass by pass —
+ * `source.loop` cannot crossfade, and every one of these tracks needs it.
+ */
+interface ScoreVoice {
+  gain: GainNode;
+  buffer: AudioBuffer;
+  /** Normalised level this voice fades up to. */
+  level: number;
+  /** Seconds into the buffer the music actually starts. */
+  lead: number;
+  /** Length of the usable loop window. */
+  span: number;
+  sources: AudioBufferSourceNode[];
+  timer: number | null;
+  stopped: boolean;
+}
+
+/**
+ * Web Audio mixer: a hall ambience bed and a tension stem that crossfade with
+ * game intensity, one score per battleground on its own crossfading bus, plus
+ * one-shot SFX. UI blips are synthesised so every hover does not cost a network
+ * asset.
  */
 export class AudioManager {
   private ctx: AudioContext | null = null;
@@ -303,6 +375,15 @@ export class AudioManager {
   private muted = false;
   private started = false;
   private loading: Promise<void> | null = null;
+  /** Score sub-bus. Intensity rides here, so a swap never fights the ducking. */
+  private scoreBus: GainNode | null = null;
+  /** Which battleground the player is on — known before the mixer is unlocked. */
+  private arena: ArenaTheme = DEFAULT_ARENA;
+  /** Which battleground's score is actually playing. */
+  private scoreArena: ArenaTheme | null = null;
+  private scoreVoice: ScoreVoice | null = null;
+  private scoreBuffers = new Map<ArenaTheme, AudioBuffer>();
+  private scoreLoads = new Map<ArenaTheme, Promise<void>>();
 
   get isMuted(): boolean {
     return this.muted;
@@ -321,11 +402,17 @@ export class AudioManager {
       this.bedBus = this.ctx.createGain();
       this.bedBus.gain.value = 1;
       this.bedBus.connect(this.master);
+      // Under the ducking bus like every other bed, so a death cry still pulls
+      // the music down whichever map it belongs to.
+      this.scoreBus = this.ctx.createGain();
+      this.scoreBus.gain.value = SCORE_VOLUME;
+      this.scoreBus.connect(this.bedBus);
     }
     if (this.ctx.state === "suspended") await this.ctx.resume();
     if (!this.loading) this.loading = this.preload();
     await this.loading;
     this.startBeds();
+    void this.playScore(this.arena);
     // Voices only matter on a capture, so they stream in behind the music
     // rather than holding up the first frame of the game.
     void this.primeDeathCries();
@@ -355,7 +442,6 @@ export class AudioManager {
     this.started = true;
     const layers: { name: BedName; key: keyof typeof AUDIO_URLS }[] = [
       { name: "ambience", key: "ambience" },
-      { name: "score", key: "score" },
       { name: "tension", key: "tension" },
     ];
     for (const layer of layers) {
@@ -380,7 +466,155 @@ export class AudioManager {
     if (!this.ctx) return;
     const clamped = Math.max(0, Math.min(1, intensity));
     this.fadeBed("tension", clamped * 0.5, 1.8);
-    this.fadeBed("score", 0.34 - clamped * 0.12, 1.8);
+    this.fadeScoreBus(SCORE_VOLUME - clamped * 0.12, 1.8);
+  }
+
+  /**
+   * Points the mixer at a battleground's score. Safe to call before `unlock()`
+   * (the choice is remembered and started with the rest of the mix) and safe to
+   * call repeatedly — the same map is never restarted.
+   */
+  setArena(theme: ArenaTheme): void {
+    if (this.arena === theme) return;
+    this.arena = theme;
+    if (!this.ctx) return;
+    void this.playScore(theme);
+  }
+
+  private fadeScoreBus(value: number, seconds: number): void {
+    if (!this.scoreBus || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const gain = this.scoreBus.gain;
+    gain.cancelScheduledValues(now);
+    gain.setValueAtTime(gain.value, now);
+    gain.linearRampToValueAtTime(value, now + seconds);
+  }
+
+  /** Streams and decodes one battleground's score. Cached per map. */
+  private loadScore(theme: ArenaTheme): Promise<void> {
+    const pending = this.scoreLoads.get(theme);
+    if (pending) return pending;
+    const job = (async () => {
+      try {
+        const response = await fetch(ARENA_SCORES[theme].url);
+        const raw = await response.arrayBuffer();
+        const ctx = this.ctx;
+        if (!ctx) return;
+        this.scoreBuffers.set(theme, await ctx.decodeAudioData(raw));
+      } catch (error) {
+        console.warn(`[audio] could not load the score for "${theme}"`, error);
+      }
+    })();
+    this.scoreLoads.set(theme, job);
+    return job;
+  }
+
+  /**
+   * Crossfades to a battleground's score, streaming it first. If the player
+   * moves on again while this one is still decoding, the stale arrival is
+   * dropped rather than pushed over whatever is now playing.
+   */
+  private async playScore(theme: ArenaTheme): Promise<void> {
+    if (this.scoreArena === theme) return;
+    await this.loadScore(theme);
+    if (this.arena !== theme || this.scoreArena === theme) return;
+    const buffer = this.scoreBuffers.get(theme);
+    if (!buffer || !this.ctx || !this.scoreBus) return;
+    const previous = this.scoreVoice;
+    this.scoreArena = theme;
+    this.scoreVoice = this.startScoreVoice(buffer, theme, previous ? SCORE_SWAP_FADE : 1.6);
+    if (previous) this.stopScoreVoice(previous, SCORE_SWAP_FADE);
+  }
+
+  /**
+   * Starts one score playing, levelled and looping.
+   *
+   * The level is derived from the track's measured loudness rather than authored
+   * per map: across the seven scores the generator's own loudness spans 20.6 LU,
+   * so a shared gain would mean the map with the loudest render is the map with
+   * the loudest music.
+   */
+  private startScoreVoice(buffer: AudioBuffer, theme: ArenaTheme, fadeIn: number): ScoreVoice {
+    const ctx = this.ctx as AudioContext;
+    const score = ARENA_SCORES[theme];
+    const [floor, ceiling] = SCORE_GAIN_RANGE;
+    const level = Math.min(ceiling, Math.max(floor, 10 ** ((SCORE_TARGET_LOUDNESS - score.loudness) / 20)));
+    const gain = ctx.createGain();
+    gain.connect(this.scoreBus ?? ctx.destination);
+    const now = ctx.currentTime + 0.06;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(level, now + fadeIn);
+    const voice: ScoreVoice = {
+      gain,
+      buffer,
+      level,
+      lead: score.lead,
+      // The window the music actually lives in: the measured silence at either
+      // end is not part of the loop.
+      span: Math.max(4, buffer.duration - score.lead - score.tail),
+      sources: [],
+      timer: null,
+      stopped: false,
+    };
+    this.scheduleScorePass(voice, now);
+    return voice;
+  }
+
+  /**
+   * Schedules one pass of a score's loop window and arms the next one.
+   *
+   * `source.loop` is not enough here: it butt-joins the buffer's last sample to
+   * its first, and these tracks were not written to survive that — two of them
+   * end in over a second of silence while opening at full level (a hole, then a
+   * jolt), and two more are still playing at the final sample. So each pass is
+   * its own source over `[lead, lead + span]`, and passes overlap by one
+   * equal-power crossfade.
+   */
+  private scheduleScorePass(voice: ScoreVoice, when: number): void {
+    const ctx = this.ctx;
+    if (!ctx || voice.stopped) return;
+    const fade = Math.min(SCORE_LOOP_FADE, voice.span / 3);
+    const source = ctx.createBufferSource();
+    source.buffer = voice.buffer;
+    const pass = ctx.createGain();
+    // No `setValueAtTime` in front of the curves: an event inside a value curve's
+    // own time range is a `NotSupportedError`, and nothing flows through this
+    // node before its source starts anyway.
+    pass.gain.setValueCurveAtTime(FADE_IN_CURVE, when, fade);
+    pass.gain.setValueCurveAtTime(FADE_OUT_CURVE, when + voice.span - fade, fade);
+    source.connect(pass);
+    pass.connect(voice.gain);
+    source.start(when, voice.lead, voice.span);
+    source.onended = () => {
+      pass.disconnect();
+      voice.sources = voice.sources.filter((item) => item !== source);
+    };
+    voice.sources.push(source);
+    const next = when + voice.span - fade;
+    // Armed a beat before the crossfade is due, so the next pass is scheduled
+    // against the audio clock rather than whenever the timer happens to fire.
+    const delay = Math.max(60, (next - ctx.currentTime - 1.5) * 1000);
+    voice.timer = window.setTimeout(() => this.scheduleScorePass(voice, next), delay);
+  }
+
+  /** Fades a score out and lets go of it. */
+  private stopScoreVoice(voice: ScoreVoice, seconds: number): void {
+    voice.stopped = true;
+    if (voice.timer !== null) window.clearTimeout(voice.timer);
+    voice.timer = null;
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    voice.gain.gain.cancelScheduledValues(now);
+    voice.gain.gain.setValueAtTime(voice.gain.gain.value, now);
+    voice.gain.gain.linearRampToValueAtTime(0, now + seconds);
+    for (const source of voice.sources) {
+      try {
+        source.stop(now + seconds + 0.05);
+      } catch {
+        // Already finished — nothing to stop.
+      }
+    }
   }
 
   private fadeBed(name: BedName, value: number, seconds: number): void {
@@ -1663,6 +1897,12 @@ export class AudioManager {
   dispose(): void {
     for (const bed of this.beds.values()) bed.source?.stop();
     this.beds.clear();
+    if (this.scoreVoice) this.stopScoreVoice(this.scoreVoice, 0);
+    this.scoreVoice = null;
+    this.scoreArena = null;
+    this.scoreBus = null;
+    this.scoreBuffers.clear();
+    this.scoreLoads.clear();
     this.voices.clear();
     this.voiceLoads.clear();
     this.shots.clear();

@@ -539,7 +539,7 @@ src/
   scene/             three.js only
     sceneEngine.ts     renderer, camera, interaction, marching, combat choreography
     environment.ts     hall, lighting, torches, particles, PMREM environment
-    arena.ts           the four battleground looks
+    arena.ts           the seven battleground looks
     battlefield.ts     siege props, camps, fires, birds
     jungle.ts          canopy, palms, vines, pollen for the Sun Temple
     board.ts           tiles, base, engraved labels, highlight pool
@@ -566,7 +566,7 @@ src/
     Tooltip.tsx        themed tooltip for the icon-only controls
     MainMenu.tsx / MoveLedger.tsx / SettingsPanel.tsx / GameOverModal.tsx / Heraldry.tsx
     medieval.css       the whole overlay's look
-  audio/             Web Audio mixer with layered score stems
+  audio/             Web Audio mixer, one score per battleground plus layered stems
   assets/generated.ts  army skins (sculpts, clips, arms, voices per civilisation) + audio URLs
 ```
 
@@ -1153,9 +1153,55 @@ bunx @gltf-transform/cli optimize king.glb public/models/king.glb \
 
 ## Audio
 
-Generated MP3s are streamed once and decoded into Web Audio buffers: an ambience bed, a
-score bed and a tension stem that crossfades in during check and the endgame, plus piece,
-clash, horn and fanfare one-shots. UI blips, footsteps, the wooden set-down knock and the claim
-motif played when a square changes hands (`conquest()`) are synthesised with oscillators and
+Generated MP3s are streamed once and decoded into Web Audio buffers: a hall ambience bed, **one
+score per battleground**, and a tension stem that crossfades in during check and the endgame, plus
+piece, clash, horn and fanfare one-shots. UI blips, footsteps, the wooden set-down knock and the
+claim motif played when a square changes hands (`conquest()`) are synthesised with oscillators and
 noise buffers. Everything routes through one master gain for the mute toggle, and playback only
 starts after the first user gesture (browser autoplay policy).
+
+### One score per map
+
+The score is no longer a bed like the other two. `ARENA_SCORES` in `assets/generated.ts` holds one
+track per `ArenaTheme`, `audio.setArena(theme)` crossfades to it over `SCORE_SWAP_FADE = 2.6` s, and
+the whole thing hangs off a `scoreBus` *inside* the ducking bus — so a death cry still pulls the
+music down whichever map it belongs to, and `setIntensity()` rides the bus (`0.34 → 0.22` at full
+tension) rather than any single track. Calling `setArena()` before `unlock()` is fine: the choice is
+remembered and the map's score is simply the one that starts. Buffers are cached per theme, so
+switching back and forth costs nothing, and a track that finishes decoding after the player has
+moved on again is dropped instead of pushed over what is now playing.
+
+**Two things about a generated track cannot be trusted, and both were measured off the delivered
+MP3s rather than assumed.**
+
+*Loudness.* The seven scores came back between **-12.8 LUFS** (Ashfall) and **-33.4 LUFS** (Dune
+Bastion) — a **20.6 LU** spread. Under one shared `BED_VOLUME.score`, "which map has the loudest
+music" would have been decided by which render happened to be hottest, exactly the problem the
+recorded gunfire already solves with `TAKE_PEAK`. Each track therefore carries its measured
+`loudness` and the mixer derives its gain from `SCORE_TARGET_LOUDNESS = -18.5` — the loudness of the
+original dusk score, because that is the track the rest of the mix was balanced underneath.
+`SCORE_GAIN_RANGE = [0.35, 6]` bounds the correction so a hissy take is never boosted into noise;
+the quietest score needs ×5.55, and at that gain its true peak (-7.3 dBFS) still leaves headroom
+under the bus.
+
+*Loop points.* `source.loop = true` butt-joins the buffer's last sample to its first, and these
+tracks were not written to survive it. Measured head/tail silence (50 ms windows against a -50 dBFS
+floor):
+
+- Dawn Court ends with **2.20 s** of silence and opens at level — a hole, then a jolt.
+- Sun Temple **1.50 s**, Ashfall **1.60 s** — same shape.
+- Stormwatch and Frostfall are still playing at the **final sample** — a hard restart instead.
+- Only the original dusk track fades at both ends, which is why plain looping had never sounded
+  broken before there was more than one score.
+
+So each score stores its `lead` and `tail`, and a `ScoreVoice` loops *inside*
+`[lead, duration - tail]`: every pass is its own `AudioBufferSourceNode` started with an offset and a
+length, passes overlap by `SCORE_LOOP_FADE = 1.2` s, and the next pass is armed on a timer 1.5 s
+ahead but scheduled against the **audio clock**, so drift in `setTimeout` never moves the seam.
+
+The crossfade curves are **equal-power** (`sin`/`cos`, 48 points via `setValueCurveAtTime`), not
+linear. A linear crossfade is right for two copies of the same signal; the two sides of a loop seam
+are unrelated material, and summing them linearly dips about 3 dB in the middle — audible as a small
+hole every time the track comes round, which is precisely the artefact this was meant to remove.
+Note that no `setValueAtTime` may sit inside a value curve's own time range (`NotSupportedError`);
+nothing flows through the pass gain before its source starts, so none is needed.

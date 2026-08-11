@@ -7,7 +7,7 @@
  * the film grade all move together.
  */
 
-export type ArenaTheme = "dawn" | "frost" | "dusk" | "jungle";
+export type ArenaTheme = "dawn" | "frost" | "dusk" | "jungle" | "sands" | "storm" | "ember";
 
 /**
  * Rainforest dressing. Only the jungle map stages it; every other theme carries
@@ -244,6 +244,100 @@ export const ARENA_LOOKS: Record<ArenaTheme, ArenaLook> = {
     screenVignette: 0.22,
   },
 
+  /**
+   * Noon over a desert fortress: the harshest light on the board. The sky is
+   * almost white at the horizon and the stone is bleached ochre, so both armies
+   * read as silhouettes first and colour second — the opposite problem to dusk,
+   * and the reason the tiles are pushed to the darkest brown of any map.
+   */
+  sands: {
+    id: "sands",
+    label: "Dune Bastion",
+    note: "Blinding desert noon — bleached ochre stone, hard shadows, dust in the air",
+    exposure: 0.88,
+    background: 0xc9b98c,
+    fog: { color: 0xd9c79c, density: 0.0115 },
+    environment: {
+      top: 0x5f92c6,
+      bottom: 0xb99f6c,
+      glow: 0xf0d69a,
+      warm: 0xfff0cc,
+      cool: 0xbfae86,
+      intensity: 0.98,
+    },
+    hemi: { sky: 0xbdd2e6, ground: 0x9c8455, intensity: 1.05 },
+    keyLight: { color: 0xfff4d6, intensity: 2.75, position: [2, 20, 3] },
+    fill: { color: 0xd8bd8a, intensity: 0.68, position: [-8, 5, -8] },
+    lamp: { color: 0xfff2da, intensity: 0.26 },
+    torch: { intensity: 0.3, flame: 0.45 },
+    stone: { floor: 0xa89468, dais: 0xb29e72, pillar: 0xa08c62, wall: 0x7d6c4c, rubble: 0x8d7a56 },
+    window: { color: 0xfff4d2, opacity: 0.46 },
+    shaft: { color: 0xffe9b8, opacity: 0.2 },
+    dust: { color: 0xffeec4, opacity: 0.44 },
+    sky: { zenith: 0x3f7fc0, horizon: 0xecdcaa, ember: 0xd8a961 },
+    ridge: [1.4, 1.5, 1.3],
+    ground: 0xb59a63,
+    fire: 0.45,
+    smoke: { color: 0xb0a184, opacity: 0.2 },
+    ash: { color: 0xf0dca8, opacity: 0.42 },
+    troops: { ivory: 0x74809a, obsidian: 0x6b5340, emissive: 0.12 },
+    /** Vultures, not crows. */
+    birds: 0x3a2f26,
+    siegeEngines: true,
+    flora: NO_FLORA,
+    board: { light: 0xe9dcb6, dark: 0x453a2a, base: 0x6d5c3d, border: 0xd1b87c, trim: 0xc08c36 },
+    bloom: { strength: 0.3, threshold: 0.9, radius: 0.58 },
+    grade: { vignette: 0.48, grain: 0.02, lift: 0.008, strength: 0.62 },
+    screenVignette: 0.2,
+  },
+
+  /**
+   * A grey downpour on the ramparts. Everything is desaturated and wet: the one
+   * map where the torches are losing, which is what the sputtering flame and the
+   * cold key light are for. The falling motes are rain, not ash.
+   */
+  storm: {
+    id: "storm",
+    label: "Stormwatch",
+    note: "Rain-lashed rampart — slate light, wet stone, torches barely holding",
+    exposure: 1,
+    background: 0x5c6672,
+    fog: { color: 0x6d7682, density: 0.0165 },
+    environment: {
+      top: 0x5a667b,
+      bottom: 0x53524c,
+      glow: 0x7f8999,
+      warm: 0xcbd1d8,
+      cool: 0x7e91a9,
+      intensity: 0.86,
+    },
+    hemi: { sky: 0x90a0b3, ground: 0x4e5148, intensity: 0.92 },
+    keyLight: { color: 0xd9e3ef, intensity: 1.75, position: [-6, 17, -8] },
+    fill: { color: 0x7e8c9d, intensity: 0.72, position: [9, 6, 8] },
+    lamp: { color: 0xe0e9f3, intensity: 0.32 },
+    /** Wind-beaten: strong light, small flame. */
+    torch: { intensity: 0.9, flame: 0.6 },
+    stone: { floor: 0x6f7278, dais: 0x787b81, pillar: 0x676a70, wall: 0x494c51, rubble: 0x585b60 },
+    window: { color: 0xd9e5f3, opacity: 0.42 },
+    shaft: { color: 0xbac9db, opacity: 0.12 },
+    dust: { color: 0xcad7e5, opacity: 0.46 },
+    sky: { zenith: 0x3b4553, horizon: 0x8c96a1, ember: 0x606b79 },
+    ridge: [1.1, 1.16, 1.32],
+    ground: 0x5c6058,
+    fire: 0.7,
+    smoke: { color: 0x7b8189, opacity: 0.3 },
+    /** Rain, not cinders. */
+    ash: { color: 0xcdd8e6, opacity: 0.6 },
+    troops: { ivory: 0x5d6981, obsidian: 0x463c3b, emissive: 0.2 },
+    birds: 0x14161b,
+    siegeEngines: true,
+    flora: NO_FLORA,
+    board: { light: 0xd3d9df, dark: 0x2a313b, base: 0x464c54, border: 0xa9b3bd, trim: 0x6d7b89 },
+    bloom: { strength: 0.34, threshold: 0.86, radius: 0.66 },
+    grade: { vignette: 0.82, grain: 0.03, lift: 0.014, strength: 0.84 },
+    screenVignette: 0.36,
+  },
+
   /** The original siege at dusk — dramatic, dark, torch-lit. */
   dusk: {
     id: "dusk",
@@ -284,8 +378,55 @@ export const ARENA_LOOKS: Record<ArenaTheme, ArenaLook> = {
     grade: { vignette: 1.05, grain: 0.045, lift: 0.02, strength: 1 },
     screenVignette: 0.55,
   },
+
+  /**
+   * The darkest map, and the only one lit from *below*: a caldera under falling
+   * embers, where the ground glow does the work the sun does everywhere else.
+   * Dusk is dark and warm; this is dark and **hot** — the bloom threshold is
+   * dropped further than any other theme so the cinders actually burn.
+   */
+  ember: {
+    id: "ember",
+    label: "Ashfall",
+    note: "Volcanic caldera — black basalt, ember light from below, ash falling",
+    exposure: 1.08,
+    background: 0x120a08,
+    fog: { color: 0x1e110c, density: 0.0215 },
+    environment: {
+      top: 0x2a1410,
+      bottom: 0x1a0806,
+      glow: 0xc9451a,
+      warm: 0xff8a46,
+      cool: 0x4a2a6a,
+      intensity: 0.8,
+    },
+    hemi: { sky: 0x6a2f28, ground: 0x140806, intensity: 0.55 },
+    keyLight: { color: 0xffb070, intensity: 2.15, position: [8, 13, -7] },
+    fill: { color: 0x8a3a2a, intensity: 0.62, position: [-8, 5, 9] },
+    lamp: { color: 0xffd0a8, intensity: 0.32 },
+    torch: { intensity: 1.15, flame: 1.2 },
+    stone: { floor: 0x4a3a34, dais: 0x40322c, pillar: 0x3b302a, wall: 0x241c19, rubble: 0x2e2521 },
+    window: { color: 0xff9a58, opacity: 0.6 },
+    shaft: { color: 0xff9a58, opacity: 0.5 },
+    dust: { color: 0xffb070, opacity: 0.56 },
+    sky: { zenith: 0x150a12, horizon: 0x51170c, ember: 0xff5a1e },
+    ridge: [1.16, 0.92, 0.8],
+    ground: 0x3a2f2a,
+    fire: 1.25,
+    smoke: { color: 0x554b46, opacity: 0.34 },
+    ash: { color: 0xff7a35, opacity: 0.64 },
+    troops: { ivory: 0x4a4458, obsidian: 0x3a2a26, emissive: 0.55 },
+    birds: 0x120e10,
+    siegeEngines: true,
+    flora: NO_FLORA,
+    board: { light: 0xe9d7bf, dark: 0x32231f, base: 0x2c211c, border: 0xc18b5b, trim: 0xa85a26 },
+    bloom: { strength: 0.7, threshold: 0.66, radius: 0.78 },
+    grade: { vignette: 1.12, grain: 0.05, lift: 0.022, strength: 1.05 },
+    screenVignette: 0.58,
+  },
 };
 
-export const ARENA_ORDER: ArenaTheme[] = ["jungle", "dawn", "frost", "dusk"];
+/** Brightest hall first, darkest last — the picker reads as a dimmer. */
+export const ARENA_ORDER: ArenaTheme[] = ["jungle", "dawn", "sands", "frost", "storm", "dusk", "ember"];
 
 export const DEFAULT_ARENA: ArenaTheme = "jungle";

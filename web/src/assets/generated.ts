@@ -6,6 +6,7 @@
  */
 
 import type { Faction, PieceKind } from "../core/types";
+import type { ArenaTheme } from "../scene/arena";
 import type { ArmSculptSource } from "../scene/armoury";
 import type { ShotModelSource } from "../scene/gunfire";
 import type { WeaponId } from "../scene/weapons";
@@ -609,9 +610,98 @@ export const GUN_AUDIO_URLS = {
 /** Which recorded barrel each rank of the Grande Armée fires. */
 export type GunVoice = "pistol" | "musket" | "rifle" | "cannon";
 
+/**
+ * One battleground's music, with the three things about a generated track that
+ * cannot be trusted to be authored correctly.
+ */
+export interface ArenaScore {
+  url: string;
+  /**
+   * Integrated loudness in LUFS, measured off the delivered MP3 (ffmpeg
+   * `ebur128`). The mixer levels every score to the same loudness from this,
+   * because the generator's own level has nothing to do with the design.
+   */
+  loudness: number;
+  /** Seconds of silence at the head, skipped on every pass. */
+  lead: number;
+  /** Seconds of silence at the tail, cut off the loop window. */
+  tail: number;
+}
+
+/**
+ * A score per battleground. Measured, not trusted:
+ *
+ * - **Loudness** spread across the seven tracks is **20.6 LU** — from -12.8 LUFS
+ *   (Ashfall) to -33.4 LUFS (Dune Bastion). Under one shared bed gain, the map
+ *   with the loudest generation would simply be the map with the loudest music,
+ *   so each track is normalised to the -18.5 LUFS of the original dusk score the
+ *   whole mix was balanced against.
+ * - **Head and tail silence** are not there by agreement either: the tail runs
+ *   from 0.00 s (Stormwatch, still playing at the last sample) to 2.20 s (Dawn
+ *   Court). Looped naively, one map restarts with a two-second hole in it and
+ *   another slams back to bar one at full level. The mixer loops inside
+ *   `[lead, duration - tail]` and crossfades that window into itself.
+ *
+ * Silence bounds were found with 50 ms windows against a -50 dBFS floor.
+ */
+export const ARENA_SCORES: Record<ArenaTheme, ArenaScore> = {
+  /** Bone flute and log drums under a wet canopy. */
+  jungle: {
+    url: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/a33c5628-c5a1-442d-a13f-6fc2b8c14c31.mp3",
+    loudness: -13.5,
+    lead: 0.05,
+    tail: 1.5,
+  },
+  /** Vielle, harp and a recorder in the morning air. */
+  dawn: {
+    url: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/2ecff03e-6efb-4939-a03e-908b22c44ef4.mp3",
+    loudness: -21,
+    lead: 0,
+    tail: 2.2,
+  },
+  /** Oud, ney and frame drum over hot stone. */
+  sands: {
+    url: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/f8a1c966-f6a4-4076-8890-b7a3de52176b.mp3",
+    loudness: -33.4,
+    lead: 0.05,
+    tail: 0.25,
+  },
+  /** Nyckelharpa drone and glass bells over snow. */
+  frost: {
+    url: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/a396e898-7933-4eaa-b09e-c05443e9fa07.mp3",
+    loudness: -13.3,
+    lead: 0.1,
+    tail: 0,
+  },
+  /** Tremolo cello and far-off thunder. */
+  storm: {
+    url: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/38f30f11-e58a-42ab-9259-2915cac984cd.mp3",
+    loudness: -15.1,
+    lead: 0,
+    tail: 0,
+  },
+  /**
+   * The original siege score. Every other track is levelled against this one,
+   * because this is the one the whole mix — knocks, cries, bells, gunfire — was
+   * balanced underneath.
+   */
+  dusk: {
+    url: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/3fbe58de-9d38-4d91-a002-794d0e979eb0.mp3",
+    loudness: -18.5,
+    lead: 0.8,
+    tail: 0.8,
+  },
+  /** Low toms, anvil taps and brass under falling ash. */
+  ember: {
+    url: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/12c1bf14-8805-4f51-806e-72d68f7e3fbd.mp3",
+    loudness: -12.8,
+    lead: 0,
+    tail: 1.6,
+  },
+};
+
 export const AUDIO_URLS = {
   ambience: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/e62d5bb9-8c84-4464-8696-dbcf975f938b.mp3",
-  score: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/3fbe58de-9d38-4d91-a002-794d0e979eb0.mp3",
   tension: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/00baae5a-fde3-478a-8190-b1ad14d2e96d.mp3",
   place: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/73f19d09-0275-4c4b-87cd-eeeed26a616b.mp3",
   capture: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/64ee8170-b796-413f-8249-f1deb7803393.mp3",

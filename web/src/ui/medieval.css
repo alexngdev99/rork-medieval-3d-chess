@@ -1240,6 +1240,18 @@
   background: linear-gradient(140deg, #12172a, #8a4a1e);
 }
 
+.mc-arena-dot[data-arena="sands"] {
+  background: linear-gradient(140deg, #d8a961, #f2e3b4);
+}
+
+.mc-arena-dot[data-arena="storm"] {
+  background: linear-gradient(140deg, #3b4553, #aebbc9);
+}
+
+.mc-arena-dot[data-arena="ember"] {
+  background: linear-gradient(140deg, #150a12, #ff5a1e);
+}
+
 .mc-arena-swatch[data-arena="jungle"] {
   background:
     radial-gradient(circle at 50% 78%, rgba(226, 182, 76, 0.85) 0%, rgba(226, 182, 76, 0) 46%),
@@ -1256,6 +1268,27 @@
 
 .mc-arena-swatch[data-arena="dusk"] {
   background: linear-gradient(180deg, #0b1020 0%, #35211a 62%, #6b4021 100%);
+}
+
+/* Deep noon sky over bleached dune stone. */
+.mc-arena-swatch[data-arena="sands"] {
+  background:
+    radial-gradient(circle at 50% 8%, rgba(255, 248, 214, 0.9) 0%, rgba(255, 248, 214, 0) 34%),
+    linear-gradient(180deg, #3f7fc0 0%, #ecdcaa 52%, #b59a63 100%);
+}
+
+/* Slate cloud, rain-grey stone, one wet highlight. */
+.mc-arena-swatch[data-arena="storm"] {
+  background:
+    linear-gradient(102deg, rgba(226, 238, 250, 0.5) 0%, rgba(226, 238, 250, 0) 18%),
+    linear-gradient(180deg, #3b4553 0%, #8c96a1 58%, #5c6058 100%);
+}
+
+/* Black basalt lit from the ground up. */
+.mc-arena-swatch[data-arena="ember"] {
+  background:
+    radial-gradient(circle at 50% 96%, rgba(255, 90, 30, 0.95) 0%, rgba(255, 90, 30, 0) 52%),
+    linear-gradient(180deg, #150a12 0%, #2a1410 58%, #51170c 100%);
 }
 
 .mc-title-glow {

@@ -96,8 +96,8 @@ cd web && bun install && bun run dev
   second, the wash never reaches the board, and the lamp then keeps breathing at a low level for as
   long as the king stays in check. A warning has to be noticed, not endured — the alarm names the
   crown in danger without tinting the figures or moving the board under the player's eye.
-- **Four battlegrounds** that relight the whole world — sky, haze, stone colour, tile
-  contrast, fires, birds, siege engines and the film grade.
+- **Seven battlegrounds** that relight the whole world — sky, haze, stone colour, tile
+  contrast, fires, birds, siege engines and the film grade — and each one brings its own music.
 - **2D tactical view** — one key lifts the camera straight overhead and flattens every figure
   into a stamped counter, so nothing can hide a square. Selection and moving keep working.
 - **Three engine strengths** running off the main thread, so the render loop never blocks.
@@ -145,7 +145,7 @@ Cloudflare Pages or any static host. No environment variables are required to ru
 | Select a figure | Click it — legal squares glow green, captures red |
 | Move | Click a highlighted square, even one hidden behind a figure (click the figure again to deselect) |
 | Promotion | Tap one of the four candidates turning on their plinths — each carries a plate naming the rank — or press `Q` `R` `B` `N` (`1`-`4`), see [Reading the promotion picker](#reading-the-promotion-picker) |
-| Camera & battleground | Camera icon in the top bar — Ivory / Obsidian / Overhead / Cinematic, flip, tactical, and the four arenas |
+| Camera & battleground | Camera icon in the top bar — Ivory / Obsidian / Overhead / Cinematic, flip, tactical, and the seven arenas |
 | What a button does | Hover or focus it (tap it on touch) — every icon carries a tooltip |
 | Skip the intro | Click anywhere during the opening sweep |
 | Queue a move | While the computer is thinking, tap your figure then its square — the move plays itself the moment the turn returns, see [Queuing a move while the machine thinks](#queuing-a-move-while-the-machine-thinks) |
@@ -494,14 +494,26 @@ perfectly. Choosing the same army for both sides was the one way to hit it every
 
 ## Battlegrounds
 
-Switchable at any time from the camera menu or Settings; each one is a complete relight.
+Switchable at any time from the camera menu or Settings; each one is a complete relight **and its
+own score**. The picker runs brightest hall to darkest.
 
-| Id | Name | Look |
-| --- | --- | --- |
-| `jungle` | **Sun Temple** (default) | Rainforest clearing, jade canopy, drifting pollen, two gold-crowned step pyramids |
-| `dawn` | **Dawn Court** | Golden morning light, pale sky, warm stone — highest legibility |
-| `frost` | **Frostfall** | Overcast snowfield, cold flat light, hardest contrast on the sculpts |
-| `dusk` | **Siege at Dusk** | The original torch-lit siege — moodiest, heaviest bloom |
+| Id | Name | Look | Music |
+| --- | --- | --- | --- |
+| `jungle` | **Sun Temple** (default) | Rainforest clearing, jade canopy, drifting pollen, two gold-crowned step pyramids | Bone flute and clay ocarina over log drums and shakers |
+| `dawn` | **Dawn Court** | Golden morning light, pale sky, warm stone — highest legibility | Vielle, harp and a soft recorder in dorian |
+| `sands` | **Dune Bastion** | Blinding desert noon, bleached ochre stone, hard shadows, dust in the air | Oud ostinato, ney flute, frame drum and riq |
+| `frost` | **Frostfall** | Overcast snowfield, cold flat light, hardest contrast on the sculpts | Nyckelharpa drone, bowed lows, glass bells |
+| `storm` | **Stormwatch** | Rain-lashed rampart, slate light, wet stone, torches barely holding | Tremolo cello, pizzicato rain, far-off thunder |
+| `dusk` | **Siege at Dusk** | The original torch-lit siege — moodiest, heaviest bloom | The original siege score |
+| `ember` | **Ashfall** | Volcanic caldera, black basalt, ember light from *below*, ash falling | Low toms, anvil taps, dark brass, sub-bass |
+
+The three newest halls were built to take the light somewhere the first four could not. **Dune
+Bastion** is the only map lit from almost straight overhead, which turns both armies into
+silhouettes first and colour second — the opposite failure to dusk, and the reason its tiles are the
+darkest brown on the board. **Stormwatch** is the one map where the torches are *losing*: strong
+cold key light, small beaten flame, everything desaturated, and the falling motes read as rain
+rather than ash. **Ashfall** is lit from the ground up, so the bloom threshold drops lower than any
+other theme to let the cinders actually burn.
 
 ## Project structure
 
@@ -524,7 +536,7 @@ Switchable at any time from the camera menu or Settings; each one is a complete 
         ├── scene/          three.js only
         │   ├── sceneEngine.ts      renderer, camera, interaction, move animation, cinematics
         │   ├── environment.ts      hall, lighting, torches, particles, PMREM environment
-        │   ├── arena.ts            the four battleground looks and their ordering
+        │   ├── arena.ts            the seven battleground looks and their ordering
         │   ├── battlefield.ts      siege props, camps, fires, birds
         │   ├── jungle.ts           canopy, palms, vines, pollen for the Sun Temple
         │   ├── board.ts            tiles, base, engraved labels, highlight pool
@@ -1419,9 +1431,24 @@ bunx @gltf-transform/cli optimize king.glb public/models/king.glb \
 
 ## Audio
 
-MP3s are streamed once and decoded into Web Audio buffers: an ambience bed, a score bed and a
-tension stem that crossfades in during check and the endgame, plus place, capture, check-horn
-and fanfare one-shots. Death cries come from whichever army each side is mustering (`cries` on
+MP3s are streamed once and decoded into Web Audio buffers: a hall ambience bed, **one score per
+battleground**, and a tension stem that crossfades in during check and the endgame, plus place,
+capture, check-horn and fanfare one-shots.
+
+**Every map has its own music, and no map's music is louder than another by accident.** The seven
+scores came back from the generator between -12.8 and -33.4 LUFS — a **20.6 LU** spread. Under one
+shared bed level, "which map is loudest" would simply have been decided by which render happened to
+be hottest, so each track is measured and levelled to the -18.5 LUFS of the original siege score, the
+one the rest of the mix — knocks, cries, bells, gunfire — was balanced underneath. The same discipline
+the recorded gunfire already gets.
+
+They are also not looped by butt-joining the last sample to the first, because these tracks were not
+written to survive that: two of them end in over a second of silence while opening at full level (a
+hole, then a jolt), and two more are still playing at the final sample. Each score's real music
+window was measured — head and tail silence to 50 ms against a -50 dBFS floor — and the mixer loops
+*inside* that window, crossfading it into itself on an equal-power curve, so the seam is inaudible
+rather than the loudest event of the minute. Changing battleground crossfades the two scores over
+2.6 s; a map picked before the first tap is simply the one that starts. Death cries come from whichever army each side is mustering (`cries` on
 its `ARMY_SKINS` entry) and are lazily loaded after the mixer unlocks, since they are only
 needed on a capture; each is a real one-second take, panned by the dying figure's screen
 position and pitch-jittered per playback. They are cached by URL, so switching armies back and
