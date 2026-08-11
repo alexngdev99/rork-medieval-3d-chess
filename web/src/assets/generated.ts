@@ -735,6 +735,88 @@ export const ARMY_CARDS: Record<ArmySkinId, string> = {
   empire: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/ea0a3e42-30f9-4a74-be8c-e74ea4513d1a.png",
 };
 
+/**
+ * A sculpted landmark for one map: where it stands, how big, and which way its
+ * face is turned.
+ */
+export interface LandmarkSource {
+  url: string;
+  /** Height on the field, in metres. The GLB's own scale is ignored. */
+  height: number;
+  /** How many copies stand on the ring. */
+  count: number;
+  /** Where the first copy sits, in radians around the board. */
+  bearing: number;
+  /**
+   * Yaw correction, in radians, applied after the copy is turned to face the
+   * board — a generated model's "front" is whatever the generator made it, so
+   * this is measured from the finished GLB rather than assumed.
+   */
+  yaw: number;
+}
+
+/**
+ * The landmark each map is built around.
+ *
+ * The dressing gives a map its ground cover; this gives it a *place*. See
+ * `scene/landmarks.ts` for why a scatter of instanced blobs was never going to
+ * be enough on its own, and how far out these stand.
+ */
+export const ARENA_LANDMARKS: Partial<Record<ArenaTheme, LandmarkSource>> = {
+  /** A moss-eaten feathered-serpent head, glyphs cut along the jaw. */
+  jungle: {
+    url: `${MODEL_BASE}/9dd00cff-205c-4271-8c3d-81f19a5e7312.glb`,
+    height: 13,
+    count: 2,
+    bearing: 2.1,
+    yaw: 0,
+  },
+  /** A round watchtower with half its battlements fallen away. */
+  dawn: {
+    url: `${MODEL_BASE}/2dc211ea-0f2c-4f11-a403-585899dcf963.glb`,
+    height: 21,
+    count: 2,
+    bearing: 0.6,
+    yaw: 0,
+  },
+  /** A crowned colossus buried to the shoulders in sand. */
+  sands: {
+    url: `${MODEL_BASE}/b6b12786-f7df-4b84-b396-180f9e927376.glb`,
+    height: 17,
+    count: 2,
+    bearing: 3.5,
+    yaw: 0,
+  },
+  /**
+   * A longship wrecked in the drifts, dragon prow still up. The only sculpt of
+   * the six whose front is not local +Z — the generator reports `negativeX` —
+   * so it carries the quarter-turn that puts its prow toward the board.
+   */
+  frost: {
+    url: `${MODEL_BASE}/62a4c668-34ba-4fd0-947c-8ad16a07b0d3.glb`,
+    height: 11,
+    count: 2,
+    bearing: 1.2,
+    yaw: Math.PI / 2,
+  },
+  /** A beacon tower, roof torn off, fire basket open to the rain. */
+  storm: {
+    url: `${MODEL_BASE}/9a03ed06-8aa0-4006-822e-75c3a176a6dd.glb`,
+    height: 23,
+    count: 2,
+    bearing: 4.4,
+    yaw: 0,
+  },
+  /** The gatehouse the siege went through: portcullis crooked, stone burnt. */
+  dusk: {
+    url: `${MODEL_BASE}/aacc3a14-3a74-4e3b-be87-319278f95d42.glb`,
+    height: 16,
+    count: 2,
+    bearing: 5.2,
+    yaw: 0,
+  },
+};
+
 export const AUDIO_URLS = {
   ambience: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/e62d5bb9-8c84-4464-8696-dbcf975f938b.mp3",
   tension: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/00baae5a-fde3-478a-8190-b1ad14d2e96d.mp3",

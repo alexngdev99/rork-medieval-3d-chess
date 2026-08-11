@@ -567,6 +567,40 @@ is rotated to face the camera instead: spinning a cylinder of uniformly-scattere
 own axis leaves an identical distribution, so this is exact rather than an approximation, and it
 costs one rotation per frame instead of seven hundred.
 
+### A place needs a landmark
+
+Dressing gives a map its ground cover, and ground cover is still only *terrain*. A scatter of trees,
+rock and drifts is convincingly a place in the countryside, but it is not a place you could name:
+Frostfall and Stormwatch are both "trees and rock in bad weather" until one of them has a longship
+frozen into the drifts. Terrain tells you what the weather is doing. A landmark tells you where you
+are.
+
+So each map now also stands one sculpted monument out on the plain, cloned two or three times onto a
+ring around the board:
+
+- **Sun Temple** — a colossal moss-eaten feathered-serpent head, glyphs cut along the jaw.
+- **Dawn Court** — a ruined round watchtower, half its battlements fallen away.
+- **Dune Bastion** — a wind-scoured colossus of a crowned king, buried to the shoulders in sand.
+- **Frostfall** — a wrecked longship listing in the snow, dragon prow still up, rigging iced over.
+- **Stormwatch** — a beacon tower with its roof torn off and the fire basket standing open to the rain.
+- **Siege at Dusk** — the gatehouse the siege went through: portcullis hanging crooked, stone burnt black.
+
+**How far out they stand is solved, not chosen.** Every map runs its own fog density, and they are
+not close — Dawn Court sits at 0.0085 and the dusk siege at 0.019, more than twice as thick. One
+fixed ring would have put the same sculpt in clear air on one map and behind a wall of murk on
+another. Exponential fog keeps `exp(-(distance × density)²)` of an object's colour, so the distance
+at which a fixed fraction survives is `sqrt(-ln T) / density`, solved per map. Holding **T = 0.45** —
+just under half the colour surviving, so a landmark is unmistakably a thing and unmistakably part of
+the weather — puts the ring at 105 m on Dawn Court, 85 m in the rainforest, 78 m on the dunes, 74 m
+on the snowfield, 54 m in the storm and 47 m at dusk. Same weight in the frame on all six.
+
+They are silhouette props and are built like it: one sculpt per map, downloaded **only when that map
+is staged** (six GLBs at boot to show one would be five wasted downloads on top of the twelve rigs
+the armies already pull), never casting shadows — the shadow camera only covers the board — and
+switched off entirely on the low graphics preset alongside the other battle props. Each copy is
+measured on arrival rather than trusted: scaled by its own height, centred, and stood on its own
+lowest point, so it sits on the ground instead of hovering or sinking into it.
+
 The rest still holds: **Dune Bastion** is the only map lit from almost straight overhead, which
 turns both armies into silhouettes first and colour second — the opposite failure to dusk, and the
 reason its tiles are the darkest brown on the board. **Stormwatch** is the one map where the torches

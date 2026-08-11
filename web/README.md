@@ -1230,6 +1230,39 @@ frame instead of seven hundred. Seeding uses `sqrt(random) * radius` so the disc
 instead of crowding the middle, and a profile change re-seeds any streak left stranded above the new
 ceiling.
 
+### Landmarks
+
+`scene/landmarks.ts` stands one generated sculpt per map out on the plain — a ruin, a wreck, a
+colossus — cloned two or three times onto a ring. `Dressing` covers the *ground*; a scatter of
+instanced blobs reads as terrain, and terrain has no landmark to recognise, so two maps with the
+same vocabulary of props stay interchangeable no matter how they are lit.
+
+**The ring radius is solved from the map's own fog.** `FogExp2` keeps `exp(-(d·ρ)²)` of an object's
+colour, and the six maps run densities from `0.0085` (Dawn Court) to `0.019` (dusk) — better than a
+factor of two, so one hard-coded distance would put the same sculpt in clear air on one map and
+behind a wall of murk on another. Inverting for a fixed transmittance gives `d = sqrt(-ln T) / ρ`;
+`LANDMARK_TRANSMITTANCE = 0.45` yields **105 m** (dawn), **85 m** (jungle), **78 m** (sands),
+**74 m** (frost), **54 m** (storm) and **47 m** (dusk), clamped to `[34, 118]`. Same weight in the
+frame on every map, one line of arithmetic instead of six tuned constants.
+
+Other rules:
+
+- **Lazy, per theme.** Only the staged map's GLB is fetched, through the shared `loadGltf` window,
+  and it is cached as a built ring afterwards — shown and hidden per theme like everything else in
+  the dressing. A map switched away from before its download lands simply stages nothing.
+- **Measured, not trusted.** A generated GLB arrives at whatever scale and offset the generator
+  chose, so each is scaled by its own bounding height to `source.height` metres, centred on X/Z and
+  stood on `box.min.y`, then dropped onto `terrainHeight(x, z) - 0.7` like the rest of the dressing.
+- **Yaw is data, not a constant.** Each copy is turned to face the board (`atan2(-x, -z)`) and then
+  offset by the sculpt's own `yaw`, measured from the finished model — a generated model's "front"
+  is whatever the generator made it.
+- **No shadows, no `battleProps` preset.** The shadow camera only covers the board, so a landmark
+  60 m out would cost a shadow pass to cast nothing; and the whole system is off on `low` with the
+  other battle props.
+- Copies are spread by the **golden angle** from a per-theme seed, so no two line up behind each
+  other on the camera's orbit and none lands square on a cardinal axis. The seed is derived from the
+  theme's name, so a map's skyline is identical every session.
+
 ### The picker
 
 `ARENA_CARDS` in `assets/generated.ts` holds one painted establishing shot per theme. The card art

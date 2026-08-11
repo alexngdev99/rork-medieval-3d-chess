@@ -9,6 +9,7 @@ import type { ArenaTheme } from "./arena";
 import { ARENA_LOOKS, DEFAULT_ARENA } from "./arena";
 import { Battlefield } from "./battlefield";
 import { Dressing } from "./dressing";
+import { Landmarks } from "./landmarks";
 import { JungleOverlay } from "./jungle";
 import { BOARD_TOP, BoardView, type HighlightKind, TILE, squareToWorld, worldToSquare } from "./board";
 import { CastleHall, buildEnvironmentMap } from "./environment";
@@ -905,6 +906,8 @@ export class SceneEngine {
   private jungle: JungleOverlay;
   /** Grove, rock, standing stones, fissures and weather for every other map. */
   private dressing: Dressing;
+  /** One sculpted ruin, wreck or colossus per map, out on the skyline. */
+  private landmarks: Landmarks;
   private board = new BoardView();
   private effects = new EffectsSystem();
   /** Red light over whichever king is in check (see {@link CheckAlarm}). */
@@ -1131,6 +1134,8 @@ export class SceneEngine {
     this.scene.add(this.jungle.group);
     this.dressing = new Dressing(preset, look);
     this.scene.add(this.dressing.group);
+    this.landmarks = new Landmarks(preset, look);
+    this.scene.add(this.landmarks.group);
     this.scene.add(this.board.group);
     this.board.applyArena(look);
     this.scene.add(this.effects.group);
@@ -3887,7 +3892,13 @@ export class SceneEngine {
    * has to be lit by the same key, fill and torches it had a moment ago.
    */
   private strikeWorld(): void {
-    for (const group of [this.hall.group, this.battlefield.group, this.jungle.group, this.dressing.group]) {
+    for (const group of [
+      this.hall.group,
+      this.battlefield.group,
+      this.jungle.group,
+      this.dressing.group,
+      this.landmarks.group,
+    ]) {
       for (const child of group.children) {
         if ((child as THREE.Light).isLight || !child.visible) continue;
         child.visible = false;
@@ -4920,6 +4931,7 @@ export class SceneEngine {
     this.battlefield.applyArena(look);
     this.jungle.applyArena(look);
     this.dressing.applyArena(look);
+    this.landmarks.applyArena(look);
     this.board.applyArena(look);
     this.postfx.setGrade(look.grade);
     this.postfx.setBloom(look.bloom);
@@ -4952,6 +4964,7 @@ export class SceneEngine {
     this.battlefield.applyQuality(preset);
     this.jungle.applyQuality(preset);
     this.dressing.applyQuality(preset);
+    this.landmarks.applyQuality(preset);
     this.postfx.setPreset(preset);
     this.handleResize();
     // Rebuilding the figures mid-fight would tear down the ones that are
@@ -5334,6 +5347,7 @@ export class SceneEngine {
     this.battlefield.dispose();
     this.jungle.dispose();
     this.dressing.dispose();
+    this.landmarks.dispose();
     this.factory.dispose();
     this.environmentMap?.dispose();
     this.environmentMap = null;
