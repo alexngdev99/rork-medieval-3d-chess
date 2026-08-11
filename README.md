@@ -348,6 +348,14 @@ The board owns the screen; every panel is either short, in a corner, or foldable
   for 1.8 s on a touch press (touch has no hover), and closes on Escape, blur or scroll. The
   bubble is rendered inside its anchor rather than through a body portal, so it survives
   fullscreen.
+- **A button is not a banner.** The great hall's two standing actions used to run the full width of
+  the menu panel — 400px of gold with the crown and "TAKE THE FIELD" filling 39% of it, and the cog
+  and "SETTINGS" only 23%, measured against the typeface's real letter widths rather than eyeballed.
+  Both are now capped just past their own labels and centred, and their type, padding and spacing
+  scale with the screen, so the words read as the point of the button instead of something marooned
+  in the middle of it. They still meet the 44px touch target on the smallest screen, and the primary
+  is told apart by weight and lettering rather than by being wider — two different widths would read
+  as two unrelated controls.
 - **The showcase rail** is a single 26px row of icons — play/pause, 0.5×–4× pace, the three
   camera behaviours, loop, restart — held at 74% opacity until hovered, and foldable down to
   one clapperboard icon. Pause is shown by a breathing play button instead of a large label.

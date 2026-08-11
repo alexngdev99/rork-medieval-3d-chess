@@ -495,6 +495,16 @@ the side), `.mc-hud-corner` (bottom + left), `.mc-demo-dock`, `.mc-cinema-restor
 with the breakpoint (`--mc-edge`: 0.5 → 0.75 → 1 rem); the inset is added to it. Every variable is
 `0px` on a screen without a cutout, so nothing else changes.
 
+**The menu's two standing actions** (`.mc-actions`) are capped near their labels rather than
+stretched across the panel. They used to be `w-full`, which on the `max-w-md` slate is 400px — and
+measuring the strings against the real Cinzel advance widths, the crown plus "TAKE THE FIELD" is
+156px of ink and the cog plus "SETTINGS" only 93px, so the labels filled **39%** and **23%** of
+their buttons and floated in a quarter-metre of empty gold. The column now sits at `max-width:
+16rem` (`14rem` under 620px of height), with `clamp()` on padding, gap and type so the ratio holds
+from a phone to a desktop, and `min-height: 2.75rem` keeping the 44px touch target once the padding
+tightens. Hierarchy between the two is carried by type size and weight, **not** width: two different
+widths would read as two unrelated controls rather than a primary and its secondary.
+
 **Field tally** (`.mc-tally`, `FieldTally` in `Hud.tsx`). One row per army under the turn slate:
 crest, figures **lost**, time **on the field**, with the battle's total in the header. The row for
 the army on the move is lit — full opacity, a wash and an inset hairline in its own azure/ember — so

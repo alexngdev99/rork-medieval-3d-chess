@@ -262,29 +262,29 @@ export function MainMenu({ onStart, onOpenSettings, muster, onMuster, attract, o
         <MusterSection choice={muster} onChange={onMuster} />
         </div>
 
-        <div className="mc-panel-foot shrink-0">
+        <div className="mc-panel-foot mc-actions mt-5 shrink-0">
         <button
           type="button"
-          className="mc-btn mc-btn-primary mt-5 flex w-full items-center justify-center gap-2 py-3.5 text-sm"
+          className="mc-btn mc-btn-primary flex items-center justify-center gap-2"
           onClick={start}
         >
           {tab === "demo" ? (
             <>
-              <Clapperboard size={16} /> Start AI vs AI
+              <Clapperboard size={15} /> Start AI vs AI
             </>
           ) : (
             <>
-              <Crown size={16} /> Take the field
+              <Crown size={15} /> Take the field
             </>
           )}
         </button>
 
         <button
           type="button"
-          className="mc-btn mt-2 flex w-full items-center justify-center gap-2"
+          className="mc-btn flex items-center justify-center gap-2"
           onClick={onOpenSettings}
         >
-          <SettingsIcon size={15} /> Settings
+          <SettingsIcon size={14} /> Settings
         </button>
         </div>
       </div>

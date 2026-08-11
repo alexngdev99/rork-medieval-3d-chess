@@ -268,6 +268,39 @@
     0 0 18px rgba(216, 177, 99, 0.4);
 }
 
+/* The menu's two standing actions.
+
+   A button is not a banner. Stretched across the panel they were 400px wide,
+   and measuring the labels against the real Cinzel metrics, the crown plus
+   "TAKE THE FIELD" is 156px of ink and the cog plus "SETTINGS" only 93px — 39%
+   and 23% of the button, so both labels sat marooned in the middle of a bar
+   with a quarter-metre of empty gold around them. The column is therefore
+   capped just past the widest label rather than following the panel, and its
+   type, padding and gap all scale with the viewport so that ratio survives a
+   phone as well as a desktop. */
+.mc-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.35rem, 0.9vh, 0.55rem);
+}
+
+.mc-actions .mc-btn {
+  width: 100%;
+  max-width: 16rem;
+  padding: clamp(0.46rem, 1vh + 0.15rem, 0.66rem) 1rem;
+  /* Still a 44px touch target once the padding tightens on a short screen. */
+  min-height: 2.75rem;
+  font-size: clamp(0.66rem, 0.58rem + 0.24vw, 0.76rem);
+}
+
+/* The primary keeps the hierarchy in weight and type size, not in width — two
+   different widths would make the pair read as two unrelated controls. */
+.mc-actions .mc-btn-primary {
+  font-size: clamp(0.72rem, 0.62rem + 0.3vw, 0.84rem);
+  letter-spacing: 0.13em;
+}
+
 .mc-icon-btn {
   width: 2.5rem;
   height: 2.5rem;
@@ -760,6 +793,10 @@
 }
 
 @media (max-height: 620px) {
+  .mc-actions .mc-btn {
+    max-width: 14rem;
+  }
+
   .mc-menu-hero p:last-child,
   .mc-menu-hero .mc-rule {
     display: none;
