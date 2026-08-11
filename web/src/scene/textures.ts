@@ -1208,6 +1208,106 @@ export function tracerTexture(): THREE.CanvasTexture {
   return texture;
 }
 
+/**
+ * One falling streak, drawn vertically down a tall sprite: a soft bright core
+ * that thins and fades at both ends so a particle never starts or stops with a
+ * visible cut. Rain, snow and driven sand all use this one sprite — they differ
+ * only in how the field is tilted, scaled and driven (see `dressing.ts`).
+ */
+export function streakTexture(): THREE.CanvasTexture {
+  const width = 32;
+  const height = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2D canvas context unavailable");
+
+  // Across the streak: a hot centre falling off to nothing at the edges.
+  const across = ctx.createLinearGradient(0, 0, width, 0);
+  across.addColorStop(0, "rgba(255,255,255,0)");
+  across.addColorStop(0.5, "rgba(255,255,255,1)");
+  across.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = across;
+  ctx.fillRect(0, 0, width, height);
+
+  // Along the streak: taper both tips so the drop has no chopped end.
+  ctx.globalCompositeOperation = "destination-in";
+  const along = ctx.createLinearGradient(0, 0, 0, height);
+  along.addColorStop(0, "rgba(0,0,0,0)");
+  along.addColorStop(0.22, "rgba(0,0,0,0.85)");
+  along.addColorStop(0.78, "rgba(0,0,0,0.85)");
+  along.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = along;
+  ctx.fillRect(0, 0, width, height);
+  ctx.globalCompositeOperation = "source-over";
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * A glowing ground fissure seen from above: a ragged bright vein running the
+ * length of the sprite, hottest at its centre line and bleeding heat into the
+ * rock on both sides. Laid flat on the plain it reads as cracked molten crust.
+ */
+export function fissureTexture(): THREE.CanvasTexture {
+  const width = 256;
+  const height = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2D canvas context unavailable");
+
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, width, height);
+  ctx.globalCompositeOperation = "lighter";
+
+  // The vein wanders, so the crack never looks like a drawn line.
+  const centre: number[] = [];
+  let y = height / 2;
+  for (let x = 0; x <= width; x += 1) {
+    y += Math.sin(x * 0.09) * 0.55 + (Math.random() - 0.5) * 0.7;
+    y = Math.max(height * 0.3, Math.min(height * 0.7, y));
+    centre.push(y);
+  }
+
+  // Wide dull heat first, then the molten core on top.
+  const passes: { width: number; color: string; blur: number }[] = [
+    { width: 15, color: "rgba(120,26,6,0.55)", blur: 10 },
+    { width: 7, color: "rgba(226,84,18,0.75)", blur: 5 },
+    { width: 2.4, color: "rgba(255,214,150,1)", blur: 0 },
+  ];
+  for (const pass of passes) {
+    ctx.beginPath();
+    ctx.moveTo(0, centre[0]);
+    for (let x = 1; x <= width; x += 1) ctx.lineTo(x, centre[x]);
+    ctx.lineWidth = pass.width;
+    ctx.strokeStyle = pass.color;
+    ctx.filter = pass.blur > 0 ? `blur(${pass.blur}px)` : "none";
+    ctx.stroke();
+  }
+  ctx.filter = "none";
+  ctx.globalCompositeOperation = "source-over";
+
+  // Fade the two ends so a fissure dies out into the rock instead of stopping.
+  ctx.globalCompositeOperation = "destination-in";
+  const ends = ctx.createLinearGradient(0, 0, width, 0);
+  ends.addColorStop(0, "rgba(0,0,0,0)");
+  ends.addColorStop(0.18, "rgba(0,0,0,1)");
+  ends.addColorStop(0.82, "rgba(0,0,0,1)");
+  ends.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = ends;
+  ctx.fillRect(0, 0, width, height);
+  ctx.globalCompositeOperation = "source-over";
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 /** Vertical light-shaft gradient (bright at the window, fading to the floor). */
 export function shaftTexture(): THREE.CanvasTexture {
   const size = 128;

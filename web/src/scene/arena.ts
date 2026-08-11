@@ -43,6 +43,64 @@ const NO_FLORA: FloraLook = {
   pollen: { color: 0xffe9a8, opacity: 0 },
 };
 
+/**
+ * What actually grows, stands and falls on a map.
+ *
+ * Relighting alone cannot make a desert: a snowfield and a caldera lit the same
+ * way are still the same wall of ruins. So every theme also names its own
+ * dressing — a grove, a scatter of rock, standing stones, ground fissures and a
+ * weather field — and `Dressing` stages exactly the kinds asked for.
+ *
+ * Kinds are enumerated rather than free-form because the geometry for each is
+ * built once at boot and then hidden or shown per theme; a new map picks from
+ * this vocabulary instead of allocating new meshes at switch time.
+ */
+export interface SceneryLook {
+  /** Trees on the plain. `bare` is a dead/wind-stripped trunk with branches. */
+  grove: {
+    kind: "none" | "pine" | "palm" | "bare";
+    /** Fraction of the built instance pool to draw, 0–1. */
+    density: number;
+    /** Nearest a tree may stand to the board centre. */
+    inner: number;
+    trunk: number;
+    foliage: number;
+  };
+  /** Ground rock: rolling dunes, boulders, basalt columns or snow drifts. */
+  rocks: {
+    kind: "none" | "dune" | "boulder" | "spire" | "drift";
+    density: number;
+    color: number;
+  };
+  /** A few tall silhouettes on the skyline. */
+  monoliths: { kind: "none" | "obelisk" | "menhir"; stone: number; accent: number };
+  /** Molten cracks lighting the plain from the ground up. */
+  fissures: { enabled: boolean; color: number; opacity: number };
+  /** Standing water catching the sky — rain pools, meltwater. */
+  puddles: { enabled: boolean; color: number; opacity: number };
+  /**
+   * Falling weather. Rain, snow and driven sand are the same streak field: what
+   * separates them is the tilt off vertical, the fall speed and the streak's
+   * proportions — see `dressing.ts`.
+   */
+  weather: {
+    kind: "none" | "rain" | "snow" | "sand";
+    density: number;
+    color: number;
+    opacity: number;
+  };
+}
+
+/** Bare ground: the map dresses itself with the hall and siege props only. */
+const NO_SCENERY: SceneryLook = {
+  grove: { kind: "none", density: 0, inner: 24, trunk: 0x574430, foliage: 0x40603a },
+  rocks: { kind: "none", density: 0, color: 0x6f6a5e },
+  monoliths: { kind: "none", stone: 0x8a8272, accent: 0xc9a05a },
+  fissures: { enabled: false, color: 0xff5a1e, opacity: 0 },
+  puddles: { enabled: false, color: 0x2a323c, opacity: 0 },
+  weather: { kind: "none", density: 0, color: 0xffffff, opacity: 0 },
+};
+
 export interface ArenaLook {
   id: ArenaTheme;
   label: string;
@@ -89,6 +147,7 @@ export interface ArenaLook {
   /** Trebuchet, siege tower, ram and catapult. Off where they make no sense. */
   siegeEngines: boolean;
   flora: FloraLook;
+  scenery: SceneryLook;
 
   // --------------------------------------------------------------- board
   board: { light: number; dark: number; base: number; border: number; trim: number };
@@ -156,6 +215,8 @@ export const ARENA_LOOKS: Record<ArenaTheme, ArenaLook> = {
       beam: { color: 0xffe6a6, opacity: 0.3 },
       pollen: { color: 0xffe6a0, opacity: 0.42 },
     },
+    /** The rainforest overlay already dresses this one, top to bottom. */
+    scenery: NO_SCENERY,
     board: { light: 0xdcd0a8, dark: 0x2f4a3b, base: 0x515a41, border: 0xc3a86a, trim: 0xd7a93f },
     bloom: { strength: 0.26, threshold: 0.92, radius: 0.6 },
     grade: { vignette: 0.55, grain: 0.02, lift: 0.012, strength: 0.68 },
@@ -197,6 +258,13 @@ export const ARENA_LOOKS: Record<ArenaTheme, ArenaLook> = {
     birds: 0x141317,
     siegeEngines: true,
     flora: NO_FLORA,
+    /** A far conifer line and a few glacial boulders — the court has a country. */
+    scenery: {
+      ...NO_SCENERY,
+      grove: { kind: "pine", density: 0.55, inner: 46, trunk: 0x4a3a2c, foliage: 0x3f5a3e },
+      rocks: { kind: "boulder", density: 0.4, color: 0x8a8172 },
+      monoliths: { kind: "menhir", stone: 0x8e8676, accent: 0xc7ab7e },
+    },
     board: { light: 0xd9cfb8, dark: 0x3c4351, base: 0x554d40, border: 0xb2a17c, trim: 0x957336 },
     bloom: { strength: 0.24, threshold: 0.94, radius: 0.6 },
     grade: { vignette: 0.62, grain: 0.022, lift: 0.01, strength: 0.72 },
@@ -238,6 +306,15 @@ export const ARENA_LOOKS: Record<ArenaTheme, ArenaLook> = {
     birds: 0x1b1d24,
     siegeEngines: true,
     flora: NO_FLORA,
+    /** Snow-laden firs, drifts banked against everything, and steady snowfall. */
+    scenery: {
+      ...NO_SCENERY,
+      grove: { kind: "pine", density: 1, inner: 27, trunk: 0x3f3a36, foliage: 0x2f4149 },
+      rocks: { kind: "drift", density: 1, color: 0xdfe8f3 },
+      monoliths: { kind: "menhir", stone: 0x93a0ad, accent: 0xd8e4f0 },
+      puddles: { enabled: true, color: 0x9fb6cc, opacity: 0.5 },
+      weather: { kind: "snow", density: 1, color: 0xf2f8ff, opacity: 0.75 },
+    },
     board: { light: 0xdae2ec, dark: 0x2f3644, base: 0x4b5260, border: 0xb3bdc8, trim: 0x77869a },
     bloom: { strength: 0.28, threshold: 0.9, radius: 0.62 },
     grade: { vignette: 0.52, grain: 0.018, lift: 0.008, strength: 0.66 },
@@ -285,6 +362,14 @@ export const ARENA_LOOKS: Record<ArenaTheme, ArenaLook> = {
     birds: 0x3a2f26,
     siegeEngines: true,
     flora: NO_FLORA,
+    /** Date palms, dune backs, two obelisks, and sand coming off the crests. */
+    scenery: {
+      ...NO_SCENERY,
+      grove: { kind: "palm", density: 0.7, inner: 25, trunk: 0x7d6a48, foliage: 0x7f8a45 },
+      rocks: { kind: "dune", density: 1, color: 0xc4a973 },
+      monoliths: { kind: "obelisk", stone: 0xbda87a, accent: 0xe0c069 },
+      weather: { kind: "sand", density: 0.85, color: 0xf0dca8, opacity: 0.34 },
+    },
     board: { light: 0xe9dcb6, dark: 0x453a2a, base: 0x6d5c3d, border: 0xd1b87c, trim: 0xc08c36 },
     bloom: { strength: 0.3, threshold: 0.9, radius: 0.58 },
     grade: { vignette: 0.48, grain: 0.02, lift: 0.008, strength: 0.62 },
@@ -332,6 +417,15 @@ export const ARENA_LOOKS: Record<ArenaTheme, ArenaLook> = {
     birds: 0x14161b,
     siegeEngines: true,
     flora: NO_FLORA,
+    /** Stripped wind-bent trees, wet boulders, standing water, driving rain. */
+    scenery: {
+      ...NO_SCENERY,
+      grove: { kind: "bare", density: 1, inner: 26, trunk: 0x3b3a36, foliage: 0x3b3a36 },
+      rocks: { kind: "boulder", density: 0.8, color: 0x5f646b },
+      monoliths: { kind: "menhir", stone: 0x596068, accent: 0x8f9aa6 },
+      puddles: { enabled: true, color: 0x76889c, opacity: 0.78 },
+      weather: { kind: "rain", density: 1, color: 0xd6e4f5, opacity: 0.5 },
+    },
     board: { light: 0xd3d9df, dark: 0x2a313b, base: 0x464c54, border: 0xa9b3bd, trim: 0x6d7b89 },
     bloom: { strength: 0.34, threshold: 0.86, radius: 0.66 },
     grade: { vignette: 0.82, grain: 0.03, lift: 0.014, strength: 0.84 },
@@ -373,6 +467,12 @@ export const ARENA_LOOKS: Record<ArenaTheme, ArenaLook> = {
     birds: 0x0d0c0f,
     siegeEngines: true,
     flora: NO_FLORA,
+    /** Burnt stumps at the edge of the firelight — the siege took the wood. */
+    scenery: {
+      ...NO_SCENERY,
+      grove: { kind: "bare", density: 0.5, inner: 30, trunk: 0x2a241e, foliage: 0x2a241e },
+      rocks: { kind: "boulder", density: 0.45, color: 0x4a423a },
+    },
     board: { light: 0xf6efe0, dark: 0x2b2f38, base: 0x3b342b, border: 0xbfae8e, trim: 0x8a6a33 },
     bloom: { strength: 0.62, threshold: 0.72, radius: 0.75 },
     grade: { vignette: 1.05, grain: 0.045, lift: 0.02, strength: 1 },
@@ -419,6 +519,14 @@ export const ARENA_LOOKS: Record<ArenaTheme, ArenaLook> = {
     birds: 0x120e10,
     siegeEngines: true,
     flora: NO_FLORA,
+    /** Basalt columns, dead wood, and molten cracks doing the lighting. */
+    scenery: {
+      ...NO_SCENERY,
+      grove: { kind: "bare", density: 0.8, inner: 26, trunk: 0x1e1613, foliage: 0x1e1613 },
+      rocks: { kind: "spire", density: 1, color: 0x2b2320 },
+      monoliths: { kind: "menhir", stone: 0x241d1a, accent: 0xff5a1e },
+      fissures: { enabled: true, color: 0xff6a24, opacity: 0.9 },
+    },
     board: { light: 0xe9d7bf, dark: 0x32231f, base: 0x2c211c, border: 0xc18b5b, trim: 0xa85a26 },
     bloom: { strength: 0.7, threshold: 0.66, radius: 0.78 },
     grade: { vignette: 1.12, grain: 0.05, lift: 0.022, strength: 1.05 },

@@ -700,6 +700,30 @@ export const ARENA_SCORES: Record<ArenaTheme, ArenaScore> = {
   },
 };
 
+/**
+ * The painted card for each battleground, shown in the muster picker.
+ *
+ * The picker used to be seven CSS gradients, which is an honest summary of a
+ * map's *palette* and says nothing about the place: two blues and a grey cannot
+ * tell a snowfield from a rainstorm, and the flat swatch gave no reason to try a
+ * map the player had not picked before. These are painted establishing shots of
+ * the same seven grounds, in one series so the row reads as a set rather than
+ * seven stock images.
+ *
+ * They are decoration, not information — the label under each card is what
+ * actually names the map — so they are lazily loaded and simply absent until
+ * they arrive, with the old gradient still painted underneath as the backdrop.
+ */
+export const ARENA_CARDS: Record<ArenaTheme, string> = {
+  jungle: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/20992cc1-d88b-4ed9-8784-cea941f0405b.png",
+  dawn: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/6a4b6904-4cd3-4e9e-b10f-21647237de73.png",
+  sands: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/74ff339e-5349-485c-a6aa-3ea838b2a4b8.png",
+  frost: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/74e91d9b-4371-4237-a718-d66d8a0b6656.png",
+  storm: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/5effa91a-f969-422c-9c95-4be195282998.png",
+  dusk: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/8b01e0a2-5ce2-4d31-aef3-7cb3521c467f.png",
+  ember: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/0b874432-a80d-4c43-9862-6b65c71a5864.png",
+};
+
 export const AUDIO_URLS = {
   ambience: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/e62d5bb9-8c84-4464-8696-dbcf975f938b.mp3",
   tension: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/00baae5a-fde3-478a-8190-b1ad14d2e96d.mp3",

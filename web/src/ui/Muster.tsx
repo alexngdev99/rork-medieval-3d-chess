@@ -1,6 +1,6 @@
 import { Lock } from "lucide-react";
 
-import { ARMY_SKINS, ARMY_SKIN_ORDER, type ArmySkinId } from "../assets/generated";
+import { ARENA_CARDS, ARMY_SKINS, ARMY_SKIN_ORDER, type ArmySkinId } from "../assets/generated";
 import type { Faction } from "../core/types";
 import { ARENA_LOOKS, ARENA_ORDER, type ArenaTheme } from "../scene/arena";
 
@@ -61,7 +61,14 @@ export function ArmyPicker({
   );
 }
 
-/** The ground the board is staged on. */
+/**
+ * The ground the board is staged on: a painted card per map.
+ *
+ * The card art is decoration on top of the palette gradient, never instead of
+ * it — the gradient stays as the swatch's background, so a card that is still
+ * downloading (or never arrives) leaves a picker that still reads correctly
+ * instead of a row of empty holes.
+ */
 export function ArenaPicker({ chosen, onChoose }: { chosen: ArenaTheme; onChoose: (theme: ArenaTheme) => void }) {
   return (
     <>
@@ -73,8 +80,11 @@ export function ArenaPicker({ chosen, onChoose }: { chosen: ArenaTheme; onChoose
             className="mc-arena-card"
             data-active={chosen === theme}
             onClick={() => onChoose(theme)}
+            title={ARENA_LOOKS[theme].note}
           >
-            <span className="mc-arena-swatch" data-arena={theme} />
+            <span className="mc-arena-swatch" data-arena={theme}>
+              <img className="mc-arena-art" src={ARENA_CARDS[theme]} alt="" loading="lazy" decoding="async" />
+            </span>
             <span className="mc-display text-[0.68rem] leading-tight text-[#f0e0be]">{ARENA_LOOKS[theme].label}</span>
           </button>
         ))}

@@ -498,26 +498,68 @@ perfectly. Choosing the same army for both sides was the one way to hit it every
 
 ## Battlegrounds
 
-Switchable at any time from the camera menu or Settings; each one is a complete relight **and its
-own score**. The picker runs brightest hall to darkest.
+Switchable at any time from the camera menu or Settings. Each one is a complete relight, **its own
+scenery** and **its own score**. The picker runs brightest hall to darkest, and every map is shown
+as a painted card of the place rather than a colour swatch.
 
-| Id | Name | Look | Music |
-| --- | --- | --- | --- |
-| `jungle` | **Sun Temple** (default) | Rainforest clearing, jade canopy, drifting pollen, two gold-crowned step pyramids | Bone flute and clay ocarina over log drums and shakers |
-| `dawn` | **Dawn Court** | Golden morning light, pale sky, warm stone — highest legibility | Vielle, harp and a soft recorder in dorian |
-| `sands` | **Dune Bastion** | Blinding desert noon, bleached ochre stone, hard shadows, dust in the air | Oud ostinato, ney flute, frame drum and riq |
-| `frost` | **Frostfall** | Overcast snowfield, cold flat light, hardest contrast on the sculpts | Nyckelharpa drone, bowed lows, glass bells |
-| `storm` | **Stormwatch** | Rain-lashed rampart, slate light, wet stone, torches barely holding | Tremolo cello, pizzicato rain, far-off thunder |
-| `dusk` | **Siege at Dusk** | The original torch-lit siege — moodiest, heaviest bloom | The original siege score |
-| `ember` | **Ashfall** | Volcanic caldera, black basalt, ember light from *below*, ash falling | Low toms, anvil taps, dark brass, sub-bass |
+| Id | Name | Look | Standing on it | Music |
+| --- | --- | --- | --- | --- |
+| `jungle` | **Sun Temple** (default) | Rainforest clearing, jade canopy, drifting pollen | Wall of canopy trees, palms, ferns, hanging vines, two gold-crowned step pyramids | Bone flute and clay ocarina over log drums |
+| `dawn` | **Dawn Court** | Golden morning light, pale sky, warm stone — highest legibility | A far conifer line, glacial boulders, standing stones | Vielle, harp and a soft recorder in dorian |
+| `sands` | **Dune Bastion** | Blinding desert noon, bleached ochre stone, hard shadows | Date palms in clumps, dune backs, two capped obelisks, sand streaming off the crests | Oud ostinato, ney flute, frame drum and riq |
+| `frost` | **Frostfall** | Overcast snowfield, cold flat light, hardest contrast on the sculpts | Snow-laden firs, drifts banked against everything, meltwater, steady snowfall | Nyckelharpa drone, bowed lows, glass bells |
+| `storm` | **Stormwatch** | Rain-lashed rampart, slate light, torches barely holding | Wind-stripped dead trees, wet boulders, standing water, driving rain | Tremolo cello, pizzicato rain, far-off thunder |
+| `dusk` | **Siege at Dusk** | The original torch-lit siege — moodiest, heaviest bloom | Burnt stumps at the edge of the firelight, siege engines, camp pyres | The original siege score |
+| `ember` | **Ashfall** | Volcanic caldera, black basalt, ember light from *below* | Basalt columns, dead wood, molten fissures cracking the plain | Low toms, anvil taps, dark brass |
 
-The three newest halls were built to take the light somewhere the first four could not. **Dune
-Bastion** is the only map lit from almost straight overhead, which turns both armies into
-silhouettes first and colour second — the opposite failure to dusk, and the reason its tiles are the
-darkest brown on the board. **Stormwatch** is the one map where the torches are *losing*: strong
-cold key light, small beaten flame, everything desaturated, and the falling motes read as rain
-rather than ash. **Ashfall** is lit from the ground up, so the bloom threshold drops lower than any
-other theme to let the cinders actually burn.
+### A map is a place, not a filter
+
+The first version of the newer maps was a relight and nothing else, and that was the mistake. Sky
+colour, fog, torch strength and the film grade can convincingly move the *same* ruined field from
+morning to midnight — but they cannot make it a desert, a snowfield or a caldera. Bleaching the
+stone ochre and putting a white-hot sun overhead produced a very sunny siege. What separates those
+places is not the light falling on the ground, it is **what is standing on it**.
+
+So every theme now also names its own dressing, from one small vocabulary: a grove (conifer, palm or
+bare dead wood), a rock scatter (dunes, boulders, basalt columns or snow drifts), a few standing
+stones, molten ground fissures, standing water and a weather field. All of it is built once at boot
+and then shown, hidden and repainted per theme — the same rule the rainforest already followed — so
+switching map never allocates geometry mid-frame, and a fully dressed map costs a handful of
+instanced draw calls.
+
+**Rain, snow and a sandstorm are one system.** They are not three particle engines; they are the
+same field of streaks, and the only things that differ are the angle off vertical, the fall speed
+and how long each streak is drawn. Rain leans 15° and falls at 19 m/s in long thin lines; snow is
+nearly upright at 1.7 m/s in short fat tumbling flakes; sand is 75° over — barely falling at all,
+just *carried* — at 24 m/s, and hugs the dunes instead of filling the sky. Each streak also travels
+along its own axis rather than straight down, so a leaning drop moves the way it is drawn instead of
+sliding sideways through itself.
+
+Those streaks are flat quads, so seen edge-on they would vanish. Rather than turning 700 instances
+to face the camera every frame, the field is a **cylinder** centred on the board and the whole group
+is rotated to face the camera instead: spinning a cylinder of uniformly-scattered points about its
+own axis leaves an identical distribution, so this is exact rather than an approximation, and it
+costs one rotation per frame instead of seven hundred.
+
+The rest still holds: **Dune Bastion** is the only map lit from almost straight overhead, which
+turns both armies into silhouettes first and colour second — the opposite failure to dusk, and the
+reason its tiles are the darkest brown on the board. **Stormwatch** is the one map where the torches
+are *losing*. **Ashfall** is lit from the ground up, so the bloom threshold drops lower than any
+other theme to let the fissures and cinders actually burn.
+
+### The picker
+
+The battleground picker used to be seven CSS gradients. A gradient is an honest summary of a map's
+*palette* and says nothing at all about the place — two blues and a grey cannot tell a snowfield
+from a rainstorm — so it gave a player no reason to try a ground they had not already picked. Each
+map now carries a painted establishing shot of itself, the seven done as one series so the row reads
+as a set rather than seven stock images.
+
+The art is decoration layered **on top of** the old palette gradient, never instead of it: the
+gradient stays as the card's background, so a card still downloading (or one that never arrives)
+leaves a picker that still reads correctly instead of a row of empty holes. Cards are knocked back
+and desaturated slightly so the gilt label stays the brightest thing on them; only the chosen map
+comes fully up.
 
 ## Project structure
 
@@ -544,6 +586,7 @@ other theme to let the cinders actually burn.
         │   ├── arena.ts            the seven battleground looks and their ordering
         │   ├── battlefield.ts      siege props, camps, fires, birds
         │   ├── jungle.ts           canopy, palms, vines, pollen for the Sun Temple
+        │   ├── dressing.ts         groves, rock, monoliths, fissures, water and weather per map
         │   ├── board.ts            tiles, base, engraved labels, highlight pool
         │   ├── pieces.ts           rigged GLB loading, clips, faction materials, mixers
         │   ├── weapons.ts          arms per rank: primitives, loadouts, hand/bone mounting

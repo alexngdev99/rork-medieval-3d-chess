@@ -542,6 +542,7 @@ src/
     arena.ts           the seven battleground looks
     battlefield.ts     siege props, camps, fires, birds
     jungle.ts          canopy, palms, vines, pollen for the Sun Temple
+    dressing.ts        groves, rock, monoliths, fissures, water and weather per map
     board.ts           tiles, base, engraved labels, highlight pool
     pieces.ts          rigged GLB loading, skeletal clips, faction materials, mixers
     weapons.ts         arms per rank: primitives, loadouts, hand/bone mounting
@@ -1150,6 +1151,62 @@ For shipping, compress the GLBs instead of streaming them from a remote host:
 bunx @gltf-transform/cli optimize king.glb public/models/king.glb \
   --compress draco --texture-compress webp --texture-size 1024
 ```
+
+## Battleground scenery
+
+`arena.ts` used to describe a map purely as light: sky, fog, stone tints, fire strength, tile
+contrast and the film grade. That is enough to move the *same* ruined field from morning to
+midnight, and it is not enough to make a place. Bleaching the stone ochre and hanging a white-hot
+sun overhead produced a very sunny siege, not a desert; the caldera and the snowfield were the same
+field again at two more colour temperatures. What separates those grounds is not the light falling
+on them, it is **what is standing on them**.
+
+So every `ArenaLook` now also carries a `SceneryLook`, and `dressing.ts` stages it: a grove
+(`pine` / `palm` / `bare`), a rock scatter (`dune` / `boulder` / `spire` / `drift`), standing stones
+(`obelisk` / `menhir`), molten ground fissures, standing water, and a weather field. Kinds are an
+enum rather than free-form because every kind's geometry is built **once at boot** and then shown,
+hidden and recoloured per theme — the rule `jungle.ts` already followed — so switching map never
+allocates geometry mid-frame. Everything is instanced and stays outside the shadow camera (which
+only covers the board), so a fully dressed map is a handful of draw calls.
+
+All kinds share one `scatter()` helper, sorted outward from the board, so a theme's dunes and its
+palms agree about where the ground is and lowering the graphics preset thins the far field first —
+the ring that frames the board is the last thing to go. `applyQuality()` does not touch counts
+directly; it stores a density and re-runs `applyArena()`, so every count and visibility flag is
+derived in exactly one place.
+
+### Rain, snow and sand are one system
+
+They are not three particle engines. They are the same field of streaks, and `WEATHER_PROFILES`
+holds the only things that differ — the tilt off vertical, the fall speed, and the streak's
+proportions:
+
+- **rain** — 0.26 rad, 19 m/s, 0.035 × 1.5 m: long thin lines, leaning with the wind.
+- **snow** — 0.10 rad, 1.7 m/s, 0.14 × 0.2 m, plus a sine wander: short fat tumbling flakes.
+- **sand** — 1.31 rad, 24 m/s, 0.05 × 2.4 m, ceiling 7 m: barely falling at all, *carried*, and
+  hugging the dunes instead of filling the sky.
+
+A streak travels **along its own axis** (`sin/cos` of the tilt), not straight down, so a leaning drop
+moves the way it is drawn instead of sliding sideways through itself. One `streakTexture()` serves
+all three: a soft core tapered at both tips, so a particle never starts or stops on a visible cut.
+
+The streaks are flat quads, so edge-on they would vanish. Rather than billboarding 700 instances
+per frame, the field is a **cylinder** centred on the board and the whole `weatherGroup` is turned
+to the camera: rotating a cylinder of uniformly-scattered points about its own axis leaves an
+identical distribution, so this is exact rather than an approximation, and it costs one rotation per
+frame instead of seven hundred. Seeding uses `sqrt(random) * radius` so the disc fills evenly
+instead of crowding the middle, and a profile change re-seeds any streak left stranded above the new
+ceiling.
+
+### The picker
+
+`ARENA_CARDS` in `assets/generated.ts` holds one painted establishing shot per theme. The card art
+is layered **on top of** the palette gradient in `.mc-arena-swatch`, never instead of it: the
+gradient is still the element's background, so a card that is still downloading — or one that never
+arrives — leaves a picker that still reads as seven distinct grounds instead of a row of empty
+holes. Images are `loading="lazy"`, carry an empty `alt` (they are decoration; the label under each
+card is what names the map), and are knocked back to `opacity: 0.8` / `saturate(0.88)` so the gilt
+label stays the brightest thing on the card — only the chosen map comes fully up.
 
 ## Audio
 
