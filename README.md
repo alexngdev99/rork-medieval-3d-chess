@@ -1,5 +1,9 @@
 # King's Gambit — Medieval 3D Chess
 
+![Sculpted Ivory Kingdom knights, bishops and a crowned king facing the Sun Empire's feathered warriors across a marble-and-basalt board, each figure carrying a rank crest above its head](docs/board.jpg)
+
+<p align="center"><sub>The Ivory Kingdom mustered against the Sun Empire — rank crests up, muster rings lit, before the first move.</sub></p>
+
 A cinematic 3D chess game in the browser. Rival civilisations — a medieval European
 **Ivory Kingdom**, a Mesoamerican **Sun Empire** and Napoleonic France's **Grande Armée** —
 face each other as sculpted, rigged characters that march, strike, scream and burn away into
@@ -520,6 +524,7 @@ other theme to let the cinders actually burn.
 ```
 .
 ├── rork.json               workspace manifest (one app: web/)
+├── docs/                   images used by this README (board.jpg)
 ├── scripts/
 │   └── rewrite-commit-messages.sh
 └── web/
