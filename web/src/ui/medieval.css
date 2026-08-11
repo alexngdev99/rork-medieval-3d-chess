@@ -277,18 +277,31 @@
    with a quarter-metre of empty gold around them. The column is therefore
    capped just past the widest label rather than following the panel, and its
    type, padding and gap all scale with the viewport so that ratio survives a
-   phone as well as a desktop. */
+   phone as well as a desktop.
+
+   They now sit side by side rather than stacked. Two full-width bars read as a
+   list of two equal options; a pair reads as one decision — go, or go and set
+   things up first — and the row costs one button's height instead of two, which
+   is the height the muster panel above it wanted back. The columns are a strict
+   `1fr 1fr`, not `auto`: sized to their labels the settings button would be
+   little over half the width of the primary, and two different widths make the
+   pair read as two unrelated controls. 26rem is the cap, because half of it less
+   the gap is 200px and the widest label — crown plus "TAKE THE FIELD" — is
+   156px of ink. */
 .mc-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: clamp(0.35rem, 0.9vh, 0.55rem);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  max-width: 26rem;
+  margin-inline: auto;
+  gap: clamp(0.4rem, 1vw, 0.6rem);
 }
 
 .mc-actions .mc-btn {
   width: 100%;
-  max-width: 16rem;
-  padding: clamp(0.46rem, 1vh + 0.15rem, 0.66rem) 1rem;
+  padding: clamp(0.46rem, 1vh + 0.15rem, 0.66rem) 0.75rem;
   /* Still a 44px touch target once the padding tightens on a short screen. */
   min-height: 2.75rem;
   font-size: clamp(0.66rem, 0.58rem + 0.24vw, 0.76rem);
@@ -792,10 +805,17 @@
   }
 }
 
-@media (max-height: 620px) {
-  .mc-actions .mc-btn {
-    max-width: 14rem;
+/* Below this the two columns stop being able to hold their labels on one line,
+   and a wrapped "TAKE THE / FIELD" is worse than a stack. */
+@media (max-width: 400px) {
+  .mc-actions {
+    grid-template-columns: 1fr;
+    max-width: 16rem;
+    gap: clamp(0.35rem, 0.9vh, 0.55rem);
   }
+}
+
+@media (max-height: 620px) {
 
   .mc-menu-hero p:last-child,
   .mc-menu-hero .mc-rule {

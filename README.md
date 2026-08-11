@@ -351,11 +351,14 @@ The board owns the screen; every panel is either short, in a corner, or foldable
 - **A button is not a banner.** The great hall's two standing actions used to run the full width of
   the menu panel — 400px of gold with the crown and "TAKE THE FIELD" filling 39% of it, and the cog
   and "SETTINGS" only 23%, measured against the typeface's real letter widths rather than eyeballed.
-  Both are now capped just past their own labels and centred, and their type, padding and spacing
-  scale with the screen, so the words read as the point of the button instead of something marooned
-  in the middle of it. They still meet the 44px touch target on the smallest screen, and the primary
-  is told apart by weight and lettering rather than by being wider — two different widths would read
-  as two unrelated controls.
+  Both are now capped just past their own labels, and they sit **side by side** on one row, half the
+  width each. Stacked, they read as a list of two equal options; paired, they read as one decision —
+  go, or set things up first — and the row gives the muster panel above it a button's height back.
+  Their type, padding and spacing scale with the screen, so the words read as the point of the
+  button instead of something marooned in the middle of it. They still meet the 44px touch target on
+  the smallest screen, and the primary is told apart by weight and lettering rather than by being
+  wider — two unequal halves would read as two unrelated controls. Under 400px of width the pair
+  falls back to a stack, because a wrapped "TAKE THE / FIELD" is worse than a column.
 - **The showcase rail** is a single 26px row of icons — play/pause, 0.5×–4× pace, the three
   camera behaviours, loop, restart — held at 74% opacity until hovered, and foldable down to
   one clapperboard icon. Pause is shown by a breathing play button instead of a large label.

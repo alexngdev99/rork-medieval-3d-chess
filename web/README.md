@@ -499,11 +499,15 @@ with the breakpoint (`--mc-edge`: 0.5 → 0.75 → 1 rem); the inset is added to
 stretched across the panel. They used to be `w-full`, which on the `max-w-md` slate is 400px — and
 measuring the strings against the real Cinzel advance widths, the crown plus "TAKE THE FIELD" is
 156px of ink and the cog plus "SETTINGS" only 93px, so the labels filled **39%** and **23%** of
-their buttons and floated in a quarter-metre of empty gold. The column now sits at `max-width:
-16rem` (`14rem` under 620px of height), with `clamp()` on padding, gap and type so the ratio holds
-from a phone to a desktop, and `min-height: 2.75rem` keeping the 44px touch target once the padding
-tightens. Hierarchy between the two is carried by type size and weight, **not** width: two different
-widths would read as two unrelated controls rather than a primary and its secondary.
+their buttons and floated in a quarter-metre of empty gold. They now sit on **one row**, a
+`grid-template-columns: 1fr 1fr` capped at `max-width: 26rem` and centred: half of that less the gap
+is 200px, against 156px of ink for the widest label. The columns are a strict `1fr 1fr` rather than
+`auto` — sized to its own label the settings button would be a little over half the width of the
+primary, and hierarchy here is carried by type size and weight, **not** width, because two unequal
+halves read as two unrelated controls rather than a primary and its secondary. `clamp()` on padding,
+gap and type holds the ratio from a phone to a desktop, and `min-height: 2.75rem` keeps the 44px
+touch target once the padding tightens. Under `400px` of viewport width the grid collapses back to a
+single `16rem` column, the point at which the labels can no longer hold one line each.
 
 **Field tally** (`.mc-tally`, `FieldTally` in `Hud.tsx`). One row per army under the turn slate:
 crest, figures **lost**, time **on the field**, with the battle's total in the header. The row for
