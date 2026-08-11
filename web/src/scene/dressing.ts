@@ -84,6 +84,24 @@ function weld(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
   return merged;
 }
 
+/** A slot no one has placed yet. Scale zero draws nothing at all. */
+const PARKED = new THREE.Matrix4().makeScale(0, 0, 0);
+
+/**
+ * Parks every slot of a fresh instanced mesh.
+ *
+ * An unwritten instance matrix is the identity, which is not "nowhere" — it is a
+ * full-size prop standing at the origin, and the origin is the middle of the
+ * board. Every pool is therefore emptied before it is filled, so a slot that is
+ * never placed (or not placed yet, like a weather streak before its first
+ * frame) is invisible instead of sitting on the centre four squares.
+ */
+function park(mesh: THREE.InstancedMesh): THREE.InstancedMesh {
+  for (let i = 0; i < mesh.count; i += 1) mesh.setMatrixAt(i, PARKED);
+  mesh.instanceMatrix.needsUpdate = true;
+  return mesh;
+}
+
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -276,7 +294,7 @@ export class Dressing {
       new THREE.MeshStandardMaterial({ color: trunkColor, roughness: 1, metalness: 0, flatShading: true }),
     );
     this.trunkMaterials.set(kind, trunkMaterial);
-    const trunks = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, MAX_TREES);
+    const trunks = park(new THREE.InstancedMesh(trunkGeometry, trunkMaterial, MAX_TREES));
     trunks.frustumCulled = false;
     trunks.visible = false;
     this.groveTrunks.set(kind, trunks);
@@ -294,7 +312,7 @@ export class Dressing {
         }),
       );
       this.crownMaterials.set(kind, crownMaterial);
-      crowns = new THREE.InstancedMesh(crownGeometry, crownMaterial, MAX_TREES);
+      crowns = park(new THREE.InstancedMesh(crownGeometry, crownMaterial, MAX_TREES));
       crowns.frustumCulled = false;
       crowns.visible = false;
       this.groveCrowns.set(kind, crowns);
@@ -346,7 +364,7 @@ export class Dressing {
       new THREE.MeshStandardMaterial({ color, roughness: 0.98, metalness: 0, flatShading: true }),
     );
     this.rockMaterials.set(kind, material);
-    const mesh = new THREE.InstancedMesh(geometry, material, MAX_ROCKS);
+    const mesh = park(new THREE.InstancedMesh(geometry, material, MAX_ROCKS));
     mesh.frustumCulled = false;
     mesh.visible = false;
     this.rockMeshes.set(kind, mesh);
@@ -372,23 +390,24 @@ export class Dressing {
   // ------------------------------------------------------------- monoliths
 
   private buildMonoliths(): void {
-    this.buildMonolithKind("obelisk", this.track(obeliskGeometry()), 0xbda87a, [11, 17]);
-    const menhir = this.track(new THREE.BoxGeometry(0.34, 1, 0.19));
-    menhir.translate(0, 0.5, 0);
-    this.buildMonolithKind("menhir", menhir, 0x8e8676, [4.5, 8]);
-
-    // A cap on top of each stone: gilded on an obelisk, weathered on a menhir.
-    // It is what makes a monolith read as *made* rather than as another rock.
+    // The caps are built first because the obelisk pass places them as it goes:
+    // built afterwards, every cap kept the identity matrix and the whole set
+    // stood at full size on the middle of the board.
     const capMaterial = this.track(
       new THREE.MeshStandardMaterial({ color: 0xe0c069, roughness: 0.35, metalness: 0.7 }),
     );
     this.monolithCapMaterial = capMaterial;
     const capGeometry = this.track(new THREE.OctahedronGeometry(0.5, 0));
-    const caps = new THREE.InstancedMesh(capGeometry, capMaterial, MAX_MONOLITHS);
+    const caps = park(new THREE.InstancedMesh(capGeometry, capMaterial, MAX_MONOLITHS));
     caps.frustumCulled = false;
     caps.visible = false;
     this.monolithCaps = caps;
     this.group.add(caps);
+
+    this.buildMonolithKind("obelisk", this.track(obeliskGeometry()), 0xbda87a, [11, 17]);
+    const menhir = this.track(new THREE.BoxGeometry(0.34, 1, 0.19));
+    menhir.translate(0, 0.5, 0);
+    this.buildMonolithKind("menhir", menhir, 0x8e8676, [4.5, 8]);
   }
 
   private buildMonolithKind(
@@ -399,7 +418,7 @@ export class Dressing {
   ): void {
     const material = this.track(new THREE.MeshStandardMaterial({ color, roughness: 0.9, metalness: 0.04 }));
     this.monolithMaterials.set(kind, material);
-    const mesh = new THREE.InstancedMesh(geometry, material, MAX_MONOLITHS);
+    const mesh = park(new THREE.InstancedMesh(geometry, material, MAX_MONOLITHS));
     mesh.frustumCulled = false;
     mesh.visible = false;
     this.monolithMeshes.set(kind, mesh);
@@ -478,7 +497,7 @@ export class Dressing {
       }),
     );
     this.puddleMaterial = material;
-    const mesh = new THREE.InstancedMesh(geometry, material, MAX_PUDDLES);
+    const mesh = park(new THREE.InstancedMesh(geometry, material, MAX_PUDDLES));
     mesh.frustumCulled = false;
     mesh.visible = false;
     this.puddles = mesh;
@@ -523,7 +542,9 @@ export class Dressing {
     );
     this.weatherMaterial = material;
 
-    const mesh = new THREE.InstancedMesh(geometry, material, MAX_WEATHER);
+    // Parked until the first `update` writes real matrices — otherwise the whole
+    // field spends its first frame stacked at the centre of the board.
+    const mesh = park(new THREE.InstancedMesh(geometry, material, MAX_WEATHER));
     mesh.frustumCulled = false;
     mesh.visible = false;
     mesh.renderOrder = 3;

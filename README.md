@@ -527,6 +527,16 @@ and then shown, hidden and repainted per theme — the same rule the rainforest 
 switching map never allocates geometry mid-frame, and a fully dressed map costs a handful of
 instanced draw calls.
 
+Scenery is scenery: **none of it is allowed onto the board.** Everything is staged outside a clear
+radius that reaches far past the last rank, because a prop standing between the squares is not
+atmosphere, it is something in the way of reading the position. The first build broke that rule by
+accident — a gilded obelisk cap was created *after* the pass meant to place it, so five of them
+stood full-size on the middle four squares, and the whole weather field spent its opening frame
+stacked there too. Both are fixed, and every scattered pool now starts out **empty** rather than
+piled at the centre, so nothing can ever be drawn at a spot nobody chose for it. Rebuilding the
+dressing headless and dumping every single transform: the closest piece of scenery on any map now
+sits 23.6 m from the middle, against a board that only reaches 4.1 m.
+
 **Rain, snow and a sandstorm are one system.** They are not three particle engines; they are the
 same field of streaks, and the only things that differ are the angle off vertical, the fall speed
 and how long each streak is drawn. Rain leans 15° and falls at 19 m/s in long thin lines; snow is

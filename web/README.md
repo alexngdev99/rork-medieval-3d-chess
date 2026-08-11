@@ -1169,6 +1169,24 @@ hidden and recoloured per theme — the rule `jungle.ts` already followed — so
 allocates geometry mid-frame. Everything is instanced and stays outside the shadow camera (which
 only covers the board), so a fully dressed map is a handful of draw calls.
 
+**The identity matrix is not "nowhere".** An `InstancedMesh` slot nobody writes to keeps the
+identity transform, which is a full-size prop standing at the origin — and the origin is the middle
+of the board. Two pools were doing exactly that: `buildMonoliths()` created the gilded caps *after*
+the obelisk pass that places them, so all five stayed at unit scale on the centre four squares, and
+the whole weather field spent its first frame stacked there as well. Rebuilding the dressing
+headless and dumping every instance transform found 5 octahedra plus 520–720 quads at radius 0.00,
+against a board that only reaches 4.08 m.
+
+Caps are now built before the pass that places them, and every pool is **parked** — a zero-scale
+matrix written into all slots at construction — so a slot that is never placed, or not placed yet,
+is degenerate and rasterises nothing. Same probe afterwards: the closest piece of dressing on any
+map is 23.6 m out, which is `CLEAR_RADIUS`, as intended.
+
+One trap when checking this: `Matrix4.decompose()` cannot read a zero scale back out — it reports
+`1, 1, 1` for an all-zero matrix — so a parked slot looks like a unit-size prop at the origin to any
+test that decomposes it, and the first probe run duly "failed" against a fix that was already
+working. Test `matrix.determinant() === 0` instead.
+
 All kinds share one `scatter()` helper, sorted outward from the board, so a theme's dunes and its
 palms agree about where the ground is and lowering the graphics preset thins the far field first —
 the ring that frames the board is the last thing to go. `applyQuality()` does not touch counts
