@@ -1335,10 +1335,6 @@
   background: linear-gradient(140deg, #3b4553, #aebbc9);
 }
 
-.mc-arena-dot[data-arena="ember"] {
-  background: linear-gradient(140deg, #150a12, #ff5a1e);
-}
-
 .mc-arena-swatch[data-arena="jungle"] {
   background:
     radial-gradient(circle at 50% 78%, rgba(226, 182, 76, 0.85) 0%, rgba(226, 182, 76, 0) 46%),
@@ -1369,13 +1365,6 @@
   background:
     linear-gradient(102deg, rgba(226, 238, 250, 0.5) 0%, rgba(226, 238, 250, 0) 18%),
     linear-gradient(180deg, #3b4553 0%, #8c96a1 58%, #5c6058 100%);
-}
-
-/* Black basalt lit from the ground up. */
-.mc-arena-swatch[data-arena="ember"] {
-  background:
-    radial-gradient(circle at 50% 96%, rgba(255, 90, 30, 0.95) 0%, rgba(255, 90, 30, 0) 52%),
-    linear-gradient(180deg, #150a12 0%, #2a1410 58%, #51170c 100%);
 }
 
 .mc-title-glow {

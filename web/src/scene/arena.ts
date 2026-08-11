@@ -7,7 +7,7 @@
  * the film grade all move together.
  */
 
-export type ArenaTheme = "dawn" | "frost" | "dusk" | "jungle" | "sands" | "storm" | "ember";
+export type ArenaTheme = "dawn" | "frost" | "dusk" | "jungle" | "sands" | "storm";
 
 /**
  * Rainforest dressing. Only the jungle map stages it; every other theme carries
@@ -46,10 +46,10 @@ const NO_FLORA: FloraLook = {
 /**
  * What actually grows, stands and falls on a map.
  *
- * Relighting alone cannot make a desert: a snowfield and a caldera lit the same
- * way are still the same wall of ruins. So every theme also names its own
- * dressing — a grove, a scatter of rock, standing stones, ground fissures and a
- * weather field — and `Dressing` stages exactly the kinds asked for.
+ * Relighting alone cannot make a desert: a snowfield and a rainswept rampart lit
+ * the same way are still the same wall of ruins. So every theme also names its
+ * own dressing — a grove, a scatter of rock, standing stones, standing water and
+ * a weather field — and `Dressing` stages exactly the kinds asked for.
  *
  * Kinds are enumerated rather than free-form because the geometry for each is
  * built once at boot and then hidden or shown per theme; a new map picks from
@@ -66,16 +66,14 @@ export interface SceneryLook {
     trunk: number;
     foliage: number;
   };
-  /** Ground rock: rolling dunes, boulders, basalt columns or snow drifts. */
+  /** Ground rock: rolling dunes, boulders or snow drifts. */
   rocks: {
-    kind: "none" | "dune" | "boulder" | "spire" | "drift";
+    kind: "none" | "dune" | "boulder" | "drift";
     density: number;
     color: number;
   };
   /** A few tall silhouettes on the skyline. */
   monoliths: { kind: "none" | "obelisk" | "menhir"; stone: number; accent: number };
-  /** Molten cracks lighting the plain from the ground up. */
-  fissures: { enabled: boolean; color: number; opacity: number };
   /** Standing water catching the sky — rain pools, meltwater. */
   puddles: { enabled: boolean; color: number; opacity: number };
   /**
@@ -96,7 +94,6 @@ const NO_SCENERY: SceneryLook = {
   grove: { kind: "none", density: 0, inner: 24, trunk: 0x574430, foliage: 0x40603a },
   rocks: { kind: "none", density: 0, color: 0x6f6a5e },
   monoliths: { kind: "none", stone: 0x8a8272, accent: 0xc9a05a },
-  fissures: { enabled: false, color: 0xff5a1e, opacity: 0 },
   puddles: { enabled: false, color: 0x2a323c, opacity: 0 },
   weather: { kind: "none", density: 0, color: 0xffffff, opacity: 0 },
 };
@@ -478,63 +475,9 @@ export const ARENA_LOOKS: Record<ArenaTheme, ArenaLook> = {
     grade: { vignette: 1.05, grain: 0.045, lift: 0.02, strength: 1 },
     screenVignette: 0.55,
   },
-
-  /**
-   * The darkest map, and the only one lit from *below*: a caldera under falling
-   * embers, where the ground glow does the work the sun does everywhere else.
-   * Dusk is dark and warm; this is dark and **hot** — the bloom threshold is
-   * dropped further than any other theme so the cinders actually burn.
-   */
-  ember: {
-    id: "ember",
-    label: "Ashfall",
-    note: "Volcanic caldera — black basalt, ember light from below, ash falling",
-    exposure: 1.08,
-    background: 0x120a08,
-    fog: { color: 0x1e110c, density: 0.0215 },
-    environment: {
-      top: 0x2a1410,
-      bottom: 0x1a0806,
-      glow: 0xc9451a,
-      warm: 0xff8a46,
-      cool: 0x4a2a6a,
-      intensity: 0.8,
-    },
-    hemi: { sky: 0x6a2f28, ground: 0x140806, intensity: 0.55 },
-    keyLight: { color: 0xffb070, intensity: 2.15, position: [8, 13, -7] },
-    fill: { color: 0x8a3a2a, intensity: 0.62, position: [-8, 5, 9] },
-    lamp: { color: 0xffd0a8, intensity: 0.32 },
-    torch: { intensity: 1.15, flame: 1.2 },
-    stone: { floor: 0x4a3a34, dais: 0x40322c, pillar: 0x3b302a, wall: 0x241c19, rubble: 0x2e2521 },
-    window: { color: 0xff9a58, opacity: 0.6 },
-    shaft: { color: 0xff9a58, opacity: 0.5 },
-    dust: { color: 0xffb070, opacity: 0.56 },
-    sky: { zenith: 0x150a12, horizon: 0x51170c, ember: 0xff5a1e },
-    ridge: [1.16, 0.92, 0.8],
-    ground: 0x3a2f2a,
-    fire: 1.25,
-    smoke: { color: 0x554b46, opacity: 0.34 },
-    ash: { color: 0xff7a35, opacity: 0.64 },
-    troops: { ivory: 0x4a4458, obsidian: 0x3a2a26, emissive: 0.55 },
-    birds: 0x120e10,
-    siegeEngines: true,
-    flora: NO_FLORA,
-    /** Basalt columns, dead wood, and molten cracks doing the lighting. */
-    scenery: {
-      ...NO_SCENERY,
-      grove: { kind: "bare", density: 0.8, inner: 26, trunk: 0x1e1613, foliage: 0x1e1613 },
-      rocks: { kind: "spire", density: 1, color: 0x2b2320 },
-      monoliths: { kind: "menhir", stone: 0x241d1a, accent: 0xff5a1e },
-      fissures: { enabled: true, color: 0xff6a24, opacity: 0.9 },
-    },
-    board: { light: 0xe9d7bf, dark: 0x32231f, base: 0x2c211c, border: 0xc18b5b, trim: 0xa85a26 },
-    bloom: { strength: 0.7, threshold: 0.66, radius: 0.78 },
-    grade: { vignette: 1.12, grain: 0.05, lift: 0.022, strength: 1.05 },
-    screenVignette: 0.58,
-  },
 };
 
 /** Brightest hall first, darkest last — the picker reads as a dimmer. */
-export const ARENA_ORDER: ArenaTheme[] = ["jungle", "dawn", "sands", "frost", "storm", "dusk", "ember"];
+export const ARENA_ORDER: ArenaTheme[] = ["jungle", "dawn", "sands", "frost", "storm", "dusk"];
 
 export const DEFAULT_ARENA: ArenaTheme = "jungle";

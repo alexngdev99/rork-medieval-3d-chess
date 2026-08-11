@@ -518,19 +518,24 @@ as a painted card of the place rather than a colour swatch.
 | `frost` | **Frostfall** | Overcast snowfield, cold flat light, hardest contrast on the sculpts | Snow-laden firs, drifts banked against everything, meltwater, steady snowfall | Nyckelharpa drone, bowed lows, glass bells |
 | `storm` | **Stormwatch** | Rain-lashed rampart, slate light, torches barely holding | Wind-stripped dead trees, wet boulders, standing water, driving rain | Tremolo cello, pizzicato rain, far-off thunder |
 | `dusk` | **Siege at Dusk** | The original torch-lit siege — moodiest, heaviest bloom | Burnt stumps at the edge of the firelight, siege engines, camp pyres | The original siege score |
-| `ember` | **Ashfall** | Volcanic caldera, black basalt, ember light from *below* | Basalt columns, dead wood, molten fissures cracking the plain | Low toms, anvil taps, dark brass |
+
+There was a seventh, **Ashfall** — a volcanic caldera lit from below, with basalt columns and molten
+fissures cracking the plain. It is **gone**, and with it the whole fissure system and the basalt
+column rock kind, which no other ground used. A map earns its place by being somewhere you would
+choose to play; a hall so dark that both armies read as silhouettes against their own ground is a
+nice picture and a bad board.
 
 ### A map is a place, not a filter
 
 The first version of the newer maps was a relight and nothing else, and that was the mistake. Sky
 colour, fog, torch strength and the film grade can convincingly move the *same* ruined field from
-morning to midnight — but they cannot make it a desert, a snowfield or a caldera. Bleaching the
-stone ochre and putting a white-hot sun overhead produced a very sunny siege. What separates those
-places is not the light falling on the ground, it is **what is standing on it**.
+morning to midnight — but they cannot make it a desert or a snowfield. Bleaching the stone ochre and
+putting a white-hot sun overhead produced a very sunny siege. What separates those places is not the
+light falling on the ground, it is **what is standing on it**.
 
 So every theme now also names its own dressing, from one small vocabulary: a grove (conifer, palm or
-bare dead wood), a rock scatter (dunes, boulders, basalt columns or snow drifts), a few standing
-stones, molten ground fissures, standing water and a weather field. All of it is built once at boot
+bare dead wood), a rock scatter (dunes, boulders or snow drifts), a few standing
+stones, standing water and a weather field. All of it is built once at boot
 and then shown, hidden and repainted per theme — the same rule the rainforest already followed — so
 switching map never allocates geometry mid-frame, and a fully dressed map costs a handful of
 instanced draw calls.
@@ -562,12 +567,11 @@ costs one rotation per frame instead of seven hundred.
 The rest still holds: **Dune Bastion** is the only map lit from almost straight overhead, which
 turns both armies into silhouettes first and colour second — the opposite failure to dusk, and the
 reason its tiles are the darkest brown on the board. **Stormwatch** is the one map where the torches
-are *losing*. **Ashfall** is lit from the ground up, so the bloom threshold drops lower than any
-other theme to let the fissures and cinders actually burn.
+are *losing*, and **Siege at Dusk** is now the darkest ground on offer.
 
 ### The picker
 
-The battleground picker used to be seven CSS gradients. A gradient is an honest summary of a map's
+The battleground picker used to be a row of CSS gradients. A gradient is an honest summary of a map's
 *palette* and says nothing at all about the place — two blues and a grey cannot tell a snowfield
 from a rainstorm — so it gave a player no reason to try a ground they had not already picked. Each
 map now carries a painted establishing shot of itself, the seven done as one series so the row reads
@@ -604,7 +608,7 @@ comes fully up.
         │   ├── arena.ts            the seven battleground looks and their ordering
         │   ├── battlefield.ts      siege props, camps, fires, birds
         │   ├── jungle.ts           canopy, palms, vines, pollen for the Sun Temple
-        │   ├── dressing.ts         groves, rock, monoliths, fissures, water and weather per map
+        │   ├── dressing.ts         groves, rock, monoliths, water and weather per map
         │   ├── board.ts            tiles, base, engraved labels, highlight pool
         │   ├── pieces.ts           rigged GLB loading, clips, faction materials, mixers
         │   ├── weapons.ts          arms per rank: primitives, loadouts, hand/bone mounting

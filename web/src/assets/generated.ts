@@ -631,11 +631,11 @@ export interface ArenaScore {
 /**
  * A score per battleground. Measured, not trusted:
  *
- * - **Loudness** spread across the seven tracks is **20.6 LU** — from -12.8 LUFS
- *   (Ashfall) to -33.4 LUFS (Dune Bastion). Under one shared bed gain, the map
- *   with the loudest generation would simply be the map with the loudest music,
- *   so each track is normalised to the -18.5 LUFS of the original dusk score the
- *   whole mix was balanced against.
+ * - **Loudness** spread across the tracks is **20.1 LU** — from -13.3 LUFS
+ *   (Winter Siege) to -33.4 LUFS (Dune Bastion). Under one shared bed gain, the
+ *   map with the loudest generation would simply be the map with the loudest
+ *   music, so each track is normalised to the -18.5 LUFS of the original dusk
+ *   score the whole mix was balanced against.
  * - **Head and tail silence** are not there by agreement either: the tail runs
  *   from 0.00 s (Stormwatch, still playing at the last sample) to 2.20 s (Dawn
  *   Court). Looped naively, one map restarts with a two-second hole in it and
@@ -691,24 +691,17 @@ export const ARENA_SCORES: Record<ArenaTheme, ArenaScore> = {
     lead: 0.8,
     tail: 0.8,
   },
-  /** Low toms, anvil taps and brass under falling ash. */
-  ember: {
-    url: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/12c1bf14-8805-4f51-806e-72d68f7e3fbd.mp3",
-    loudness: -12.8,
-    lead: 0,
-    tail: 1.6,
-  },
 };
 
 /**
  * The painted card for each battleground, shown in the muster picker.
  *
- * The picker used to be seven CSS gradients, which is an honest summary of a
+ * The picker used to be a row of CSS gradients, which is an honest summary of a
  * map's *palette* and says nothing about the place: two blues and a grey cannot
  * tell a snowfield from a rainstorm, and the flat swatch gave no reason to try a
  * map the player had not picked before. These are painted establishing shots of
- * the same seven grounds, in one series so the row reads as a set rather than
- * seven stock images.
+ * the same grounds, in one series so the row reads as a set rather than a
+ * handful of stock images.
  *
  * They are decoration, not information — the label under each card is what
  * actually names the map — so they are lazily loaded and simply absent until
@@ -721,7 +714,6 @@ export const ARENA_CARDS: Record<ArenaTheme, string> = {
   frost: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/74e91d9b-4371-4237-a718-d66d8a0b6656.png",
   storm: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/5effa91a-f969-422c-9c95-4be195282998.png",
   dusk: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/8b01e0a2-5ce2-4d31-aef3-7cb3521c467f.png",
-  ember: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/0b874432-a80d-4c43-9862-6b65c71a5864.png",
 };
 
 export const AUDIO_URLS = {

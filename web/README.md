@@ -552,7 +552,7 @@ src/
     arena.ts           the seven battleground looks
     battlefield.ts     siege props, camps, fires, birds
     jungle.ts          canopy, palms, vines, pollen for the Sun Temple
-    dressing.ts        groves, rock, monoliths, fissures, water and weather per map
+    dressing.ts        groves, rock, monoliths, water and weather per map
     board.ts           tiles, base, engraved labels, highlight pool
     pieces.ts          rigged GLB loading, skeletal clips, faction materials, mixers
     weapons.ts         arms per rank: primitives, loadouts, hand/bone mounting
@@ -1167,13 +1167,13 @@ bunx @gltf-transform/cli optimize king.glb public/models/king.glb \
 `arena.ts` used to describe a map purely as light: sky, fog, stone tints, fire strength, tile
 contrast and the film grade. That is enough to move the *same* ruined field from morning to
 midnight, and it is not enough to make a place. Bleaching the stone ochre and hanging a white-hot
-sun overhead produced a very sunny siege, not a desert; the caldera and the snowfield were the same
-field again at two more colour temperatures. What separates those grounds is not the light falling
+sun overhead produced a very sunny siege, not a desert; the snowfield was the same field again at
+another colour temperature. What separates those grounds is not the light falling
 on them, it is **what is standing on them**.
 
 So every `ArenaLook` now also carries a `SceneryLook`, and `dressing.ts` stages it: a grove
-(`pine` / `palm` / `bare`), a rock scatter (`dune` / `boulder` / `spire` / `drift`), standing stones
-(`obelisk` / `menhir`), molten ground fissures, standing water, and a weather field. Kinds are an
+(`pine` / `palm` / `bare`), a rock scatter (`dune` / `boulder` / `drift`), standing stones
+(`obelisk` / `menhir`), standing water, and a weather field. Kinds are an
 enum rather than free-form because every kind's geometry is built **once at boot** and then shown,
 hidden and recoloured per theme — the rule `jungle.ts` already followed — so switching map never
 allocates geometry mid-frame. Everything is instanced and stays outside the shadow camera (which
@@ -1259,8 +1259,8 @@ moved on again is dropped instead of pushed over what is now playing.
 **Two things about a generated track cannot be trusted, and both were measured off the delivered
 MP3s rather than assumed.**
 
-*Loudness.* The seven scores came back between **-12.8 LUFS** (Ashfall) and **-33.4 LUFS** (Dune
-Bastion) — a **20.6 LU** spread. Under one shared `BED_VOLUME.score`, "which map has the loudest
+*Loudness.* The scores came back between **-13.3 LUFS** (Frostfall) and **-33.4 LUFS** (Dune
+Bastion) — a **20.1 LU** spread. Under one shared `BED_VOLUME.score`, "which map has the loudest
 music" would have been decided by which render happened to be hottest, exactly the problem the
 recorded gunfire already solves with `TAKE_PEAK`. Each track therefore carries its measured
 `loudness` and the mixer derives its gain from `SCORE_TARGET_LOUDNESS = -18.5` — the loudness of the
@@ -1274,7 +1274,7 @@ tracks were not written to survive it. Measured head/tail silence (50 ms windows
 floor):
 
 - Dawn Court ends with **2.20 s** of silence and opens at level — a hole, then a jolt.
-- Sun Temple **1.50 s**, Ashfall **1.60 s** — same shape.
+- Sun Temple **1.50 s** — same shape.
 - Stormwatch and Frostfall are still playing at the **final sample** — a hard restart instead.
 - Only the original dusk track fades at both ends, which is why plain looping had never sounded
   broken before there was more than one score.

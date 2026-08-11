@@ -5,16 +5,16 @@ import type { ArenaLook, SceneryLook } from "./arena";
 import { ARENA_LOOKS, DEFAULT_ARENA } from "./arena";
 import { terrainHeight } from "./battlefield";
 import { QUALITY_SETTINGS, type QualityPreset } from "./quality";
-import { fissureTexture, streakTexture } from "./textures";
+import { streakTexture } from "./textures";
 
 /**
  * The scenery every non-jungle map is dressed with: a grove, a scatter of rock,
- * standing stones, molten ground fissures, standing water and falling weather.
+ * standing stones, standing water and falling weather.
  *
  * A relight alone was never enough. Sky colour, fog and torch strength can make
  * the *same* ruined field feel like morning or midnight, but they cannot make it
- * a desert, a snowfield or a caldera: those are different *things standing on
- * the ground*, and without them every new theme was the siege at a new hour.
+ * a desert or a snowfield: those are different *things standing on the ground*,
+ * and without them every new theme was the siege at a new hour.
  *
  * Everything is built once at boot and then shown, hidden and repainted per
  * theme — the same rule the rainforest overlay follows — so switching maps never
@@ -27,7 +27,6 @@ import { fissureTexture, streakTexture } from "./textures";
 const MAX_TREES = 96;
 const MAX_ROCKS = 132;
 const MAX_MONOLITHS = 5;
-const MAX_FISSURES = 11;
 const MAX_PUDDLES = 30;
 const MAX_WEATHER = 720;
 
@@ -213,9 +212,6 @@ export class Dressing {
   private monolithCapMaterial: THREE.MeshStandardMaterial | null = null;
 
   // ------------------------------------------------------- ground detail
-  private fissures: THREE.Mesh[] = [];
-  private fissureMaterials: THREE.MeshBasicMaterial[] = [];
-  private fissureOpacity = 0;
   private puddles: THREE.InstancedMesh | null = null;
   private puddleMaterial: THREE.MeshStandardMaterial | null = null;
 
@@ -236,7 +232,6 @@ export class Dressing {
     this.buildGroves();
     this.buildRocks();
     this.buildMonoliths();
-    this.buildFissures();
     this.buildPuddles();
     this.buildWeather();
 
@@ -341,17 +336,14 @@ export class Dressing {
   // ----------------------------------------------------------------- rocks
 
   private buildRocks(): void {
-    // A dune back and a snow drift are the same shape at different densities:
-    // a squashed blob. A boulder is the same blob unsquashed; a basalt spire is
-    // a snapped hexagonal column. All four are one icosahedron away from free.
+    // A dune back and a snow drift are the same shape at different densities: a
+    // squashed blob. A boulder is the same blob unsquashed. All three are one
+    // icosahedron away from free.
     const blob = this.track(new THREE.IcosahedronGeometry(1, 0));
-    const spire = this.track(new THREE.CylinderGeometry(0.34, 0.46, 1, 6, 1));
-    spire.translate(0, 0.5, 0);
 
     this.buildRockKind("dune", blob, 0xc4a973, { flat: 0.16, size: [6, 13], sink: 0.45 });
     this.buildRockKind("drift", blob, 0xdfe8f3, { flat: 0.13, size: [3.4, 7], sink: 0.5 });
     this.buildRockKind("boulder", blob, 0x7a746a, { flat: 0.62, size: [0.9, 2.6], sink: 0.28 });
-    this.buildRockKind("spire", spire, 0x2b2320, { flat: 1, size: [2.2, 7.5], sink: 0.1 });
   }
 
   private buildRockKind(
@@ -375,11 +367,7 @@ export class Dressing {
     spots.forEach((spot, index) => {
       const size = shape.size[0] + this.rng() * (shape.size[1] - shape.size[0]);
       dummy.position.set(spot.x, spot.y - size * shape.flat * shape.sink, spot.z);
-      dummy.rotation.set(
-        kind === "spire" ? (this.rng() - 0.5) * 0.2 : this.rng() * Math.PI,
-        this.rng() * Math.PI,
-        kind === "spire" ? (this.rng() - 0.5) * 0.2 : this.rng() * Math.PI,
-      );
+      dummy.rotation.set(this.rng() * Math.PI, this.rng() * Math.PI, this.rng() * Math.PI);
       dummy.scale.set(size, size * shape.flat, size * (0.8 + this.rng() * 0.5));
       dummy.updateMatrix();
       mesh.setMatrixAt(index, dummy.matrix);
@@ -451,37 +439,6 @@ export class Dressing {
   }
 
   // --------------------------------------------------------- ground detail
-
-  /** Molten cracks laid flat on the plain, lighting the caldera from below. */
-  private buildFissures(): void {
-    const map = this.track(fissureTexture());
-    const geometry = this.track(new THREE.PlaneGeometry(1, 1));
-    const spots = this.scatter(MAX_FISSURES, CLEAR_RADIUS + 2, 74);
-
-    spots.forEach((spot) => {
-      const material = this.track(
-        new THREE.MeshBasicMaterial({
-          map,
-          transparent: true,
-          depthWrite: false,
-          blending: THREE.AdditiveBlending,
-          opacity: 0,
-          fog: true,
-        }),
-      );
-      const mesh = new THREE.Mesh(geometry, material);
-      const length = 13 + this.rng() * 22;
-      mesh.scale.set(length, length * (0.16 + this.rng() * 0.12), 1);
-      mesh.rotation.set(-Math.PI / 2, 0, this.rng() * Math.PI * 2);
-      // Just clear of the ground, or the plain z-fights with its own crust.
-      mesh.position.set(spot.x, spot.y + 0.06, spot.z);
-      mesh.renderOrder = 1;
-      mesh.visible = false;
-      this.fissures.push(mesh);
-      this.fissureMaterials.push(material);
-      this.group.add(mesh);
-    });
-  }
 
   /** Standing water: rain pools on the rampart, meltwater on the snowfield. */
   private buildPuddles(): void {
@@ -584,7 +541,6 @@ export class Dressing {
       scenery.grove.kind !== "none" ||
       scenery.rocks.kind !== "none" ||
       scenery.monoliths.kind !== "none" ||
-      scenery.fissures.enabled ||
       scenery.puddles.enabled ||
       scenery.weather.kind !== "none";
     this.group.visible = dressed;
@@ -593,7 +549,6 @@ export class Dressing {
     this.stageGrove(scenery);
     this.stageRocks(scenery);
     this.stageMonoliths(scenery);
-    this.stageFissures(scenery);
     this.stagePuddles(scenery);
     this.stageWeather(scenery);
   }
@@ -635,16 +590,6 @@ export class Dressing {
     this.monolithCapMaterial?.color.setHex(accent);
   }
 
-  private stageFissures(scenery: SceneryLook): void {
-    const { enabled, color, opacity } = scenery.fissures;
-    this.fissureOpacity = enabled ? opacity : 0;
-    for (const mesh of this.fissures) mesh.visible = enabled;
-    for (const material of this.fissureMaterials) {
-      material.color.setHex(color);
-      material.opacity = this.fissureOpacity;
-    }
-  }
-
   private stagePuddles(scenery: SceneryLook): void {
     const { enabled, color, opacity } = scenery.puddles;
     if (!this.puddles || !this.puddleMaterial) return;
@@ -684,15 +629,6 @@ export class Dressing {
   update(delta: number, camera: THREE.Camera): void {
     if (!this.group.visible) return;
     this.elapsed += delta;
-
-    // Fissures breathe like the coals they are, each on its own phase.
-    if (this.fissureOpacity > 0) {
-      this.fissureMaterials.forEach((material, index) => {
-        const wave = Math.sin(this.elapsed * (0.5 + index * 0.07) + index * 1.7);
-        material.opacity = this.fissureOpacity * (0.72 + wave * 0.28);
-      });
-    }
-
     this.updateWeather(delta, camera);
   }
 
@@ -758,8 +694,6 @@ export class Dressing {
     this.groveCrowns.clear();
     this.rockMeshes.clear();
     this.monolithMeshes.clear();
-    this.fissures = [];
-    this.fissureMaterials = [];
     this.group.clear();
   }
 }
