@@ -1236,6 +1236,14 @@ holes. Images are `loading="lazy"`, carry an empty `alt` (they are decoration; t
 card is what names the map), and are knocked back to `opacity: 0.8` / `saturate(0.88)` so the gilt
 label stays the brightest thing on the card — only the chosen map comes fully up.
 
+`ARMY_CARDS` does the same job for the three skins, painted in the same series so the muster panel
+reads as one set rather than two unrelated pickers. The livery gradient stays as
+`.mc-army-swatch`'s background and `.mc-army-art` sits over it with the identical rules
+(`loading="lazy"`, empty `alt`, `opacity: 0.78` / `saturate(0.88)`, full brightness on
+`[data-active="true"]`, `scale(1.06)` on hover, no transform under `prefers-reduced-motion`). The
+swatch went from `1.5rem` to `2.5rem` tall: a 24px strip is enough for a gradient and not enough for
+a painting, and the bottom scrim (`::after`) keeps a bright sky off the name underneath.
+
 ## Audio
 
 Generated MP3s are streamed once and decoded into Web Audio buffers: a hall ambience bed, **one

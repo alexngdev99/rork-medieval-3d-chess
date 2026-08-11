@@ -1,6 +1,6 @@
 import { Lock } from "lucide-react";
 
-import { ARENA_CARDS, ARMY_SKINS, ARMY_SKIN_ORDER, type ArmySkinId } from "../assets/generated";
+import { ARENA_CARDS, ARMY_CARDS, ARMY_SKINS, ARMY_SKIN_ORDER, type ArmySkinId } from "../assets/generated";
 import type { Faction } from "../core/types";
 import { ARENA_LOOKS, ARENA_ORDER, type ArenaTheme } from "../scene/arena";
 
@@ -23,7 +23,13 @@ export function armyBlurb(skins: Record<Faction, ArmySkinId>): string {
     : ARMY_SKINS[skins.w].blurb;
 }
 
-/** One side's army choice: a row of cards, one per skin. */
+/**
+ * One side's army choice: a row of cards, one per skin.
+ *
+ * Same rule as the battleground picker — the painted banner is decoration laid
+ * over the livery gradient, never instead of it, so a card whose art is still
+ * downloading still reads as that army's colours.
+ */
 export function ArmyPicker({
   side,
   name,
@@ -51,7 +57,9 @@ export function ArmyPicker({
             onClick={() => onChoose(skin)}
             title={ARMY_SKINS[skin].blurb}
           >
-            <span className="mc-army-swatch" data-army={skin} />
+            <span className="mc-army-swatch" data-army={skin}>
+              <img className="mc-army-art" src={ARMY_CARDS[skin]} alt="" loading="lazy" decoding="async" />
+            </span>
             <span className="mc-display text-[0.64rem] leading-tight text-[#f0e0be]">{ARMY_SKINS[skin].label}</span>
             <span className="text-[0.58rem] leading-tight text-[#9c8b6c]">{ARMY_SKINS[skin].ranks.p}</span>
           </button>

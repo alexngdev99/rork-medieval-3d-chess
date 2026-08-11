@@ -716,6 +716,25 @@ export const ARENA_CARDS: Record<ArenaTheme, string> = {
   dusk: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/8b01e0a2-5ce2-4d31-aef3-7cb3521c467f.png",
 };
 
+/**
+ * The painted banner for each army, shown above its name in the muster picker.
+ *
+ * Same argument as {@link ARENA_CARDS}, one level down: a livery gradient is an
+ * honest summary of an army's *colours* and says nothing about who these people
+ * are — navy-white-red reads as a flag, not as a rank of shakos behind powder
+ * smoke. These are painted in the same series as the battleground cards so the
+ * whole muster panel reads as one set.
+ *
+ * Decoration, not information: the gradient stays underneath as the swatch's
+ * background, and the label under each card is what actually names the army, so
+ * a card whose painting has not arrived yet still reads correctly.
+ */
+export const ARMY_CARDS: Record<ArmySkinId, string> = {
+  ivory: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/dc88fa56-b565-4cf8-aa98-9997c8685e5d.png",
+  sun: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/3315dcf5-50c4-455b-bf13-aec6ff2ca2fd.png",
+  empire: "https://r2-pub.rork.com/projects/g9111r67kl6tq85g540sd/assets/ea0a3e42-30f9-4a74-be8c-e74ea4513d1a.png",
+};
+
 export const AUDIO_URLS = {
   ambience: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/e62d5bb9-8c84-4464-8696-dbcf975f938b.mp3",
   tension: "https://r2-pub.rork.com/generated-audio/g9111r67kl6tq85g540sd/00baae5a-fde3-478a-8190-b1ad14d2e96d.mp3",

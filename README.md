@@ -583,6 +583,15 @@ leaves a picker that still reads correctly instead of a row of empty holes. Card
 and desaturated slightly so the gilt label stays the brightest thing on them; only the chosen map
 comes fully up.
 
+The **army** cards are now painted the same way, in the same series. They had the older problem in a
+sharper form: a livery gradient summarises an army's *colours*, and colours are not an army — navy,
+white and red is a flag, not a rank of shakos standing in powder smoke, and nothing in three
+diagonal stripes tells a player what the Sun Empire actually fields. Each skin now carries its own
+painted banner — knights in plate under a pale dawn, obsidian and quetzal plumes before a stepped
+pyramid, a line of muskets behind gunsmoke — laid over the same livery gradient, with the same
+knock-back, hover lift and full-brightness-when-chosen behaviour as the maps. The swatch grew from
+1.5rem to 2.5rem tall, because a painting in a 24px letterbox is a smear.
+
 ## Project structure
 
 ```
