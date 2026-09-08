@@ -482,7 +482,7 @@ both keep their own painted textures, so the tint never runs at all in the commo
 side a figure belongs to is therefore said three times over, in channels that fail differently:
 a **band painted on the tile it stands on**, a **rim light along its silhouette**, and its
 **rank crest** — azure for the near side, ember for the far one. The band also differs in shape
-(the kingdoms' plain double band against the empire's spiked sun collar), so the answer survives
+(the kingdom's plain double band against the empire's spiked sun collar), so the answer survives
 a colour-blind player as well as a dark hall. The band is *painted* rather than added to the
 tile: the old additive glow disappeared into every lit marble square, which is most of the
 board. The rim is a fresnel edge injected beside the dissolve shader and added before tone
